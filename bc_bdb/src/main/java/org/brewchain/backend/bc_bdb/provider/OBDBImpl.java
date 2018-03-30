@@ -142,4 +142,9 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		return ConcurrentUtils.constantFuture(value);
 	}
 
+	@Override
+	public Future<OValue> get(String key) throws ODBException {
+		return get(OKey.newBuilder().setData(ByteString.copyFrom(key.getBytes())).build());
+	}
+
 }
