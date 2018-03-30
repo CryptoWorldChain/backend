@@ -1,0 +1,22 @@
+
+buildscript {
+	dependencies { 
+		classpath "onight.osgi:zpp-gradle:3.0.0"
+	 }
+}
+version = '3.0.0'
+project.group='org.brewchain.backend'
+
+apply plugin: 'zippo'
+
+dependencies { 
+	includeInJar "com.sleepycat:je:5.0.73"
+	compile ("org.fc.zippo:org.fc.zippo.oapi:3.3.0")
+	compile ("org.brewchain:org.brewchain.bcapi:3.2.0")
+}
+
+jar {
+	manifest{
+		attributes( 'Import-Ignore':'com.sleepycat')
+	}
+}
