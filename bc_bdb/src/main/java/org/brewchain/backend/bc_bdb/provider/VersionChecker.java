@@ -3,11 +3,10 @@ package org.brewchain.backend.bc_bdb.provider;
 import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.StringUtils;
-import org.brewchain.bcapi.gens.Odb.OKey;
-import org.brewchain.bcapi.gens.Odb.OValue;
+import org.brewchain.bcapi.gens.Oentity.OKey;
+import org.brewchain.bcapi.gens.Oentity.OValue;
 
 import com.google.protobuf.ByteString;
-import com.sleepycat.je.Database;
 
 import lombok.extern.slf4j.Slf4j;
 

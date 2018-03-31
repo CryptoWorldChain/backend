@@ -12,7 +12,7 @@ apply plugin: 'zippo'
 dependencies { 
 	includeInJar "com.sleepycat:je:5.0.73"
 	compile ("org.fc.zippo:org.fc.zippo.oapi:3.3.0")
-	compile ("org.brewchain:org.brewchain.bcapi:3.2.0")
+	compile ("org.brewchain:org.brewchain.bcapi:3.2.2")
 }
 
 jar {
