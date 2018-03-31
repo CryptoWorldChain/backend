@@ -1,14 +1,15 @@
 package org.brewchain.backend.bc_bdb.provider;
 
+import java.util.List;
 import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.concurrent.ConcurrentUtils;
 import org.brewchain.bcapi.backend.ODBException;
 import org.brewchain.bcapi.backend.ODBHelper;
 import org.brewchain.bcapi.backend.ODBSupport;
-import org.brewchain.bcapi.gens.Odb.OKey;
-import org.brewchain.bcapi.gens.Odb.OPair;
-import org.brewchain.bcapi.gens.Odb.OValue;
+import org.brewchain.bcapi.gens.Oentity.OKey;
+import org.brewchain.bcapi.gens.Oentity.OPair;
+import org.brewchain.bcapi.gens.Oentity.OValue;
 
 import com.google.protobuf.ByteString;
 import com.sleepycat.je.Database;
@@ -153,6 +154,12 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		return put(OKey.newBuilder().setData(ByteString.copyFrom(key.getBytes())).build()
 				,value);
 
+	}
+
+	@Override
+	public Future<List<OValue>> listBySecondKey(String arg0) throws ODBException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }
