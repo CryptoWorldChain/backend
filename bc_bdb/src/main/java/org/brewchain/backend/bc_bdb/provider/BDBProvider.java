@@ -3,7 +3,6 @@ package org.brewchain.backend.bc_bdb.provider;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 
 import org.apache.felix.ipojo.annotations.Component;
 import org.apache.felix.ipojo.annotations.Instantiate;
@@ -18,6 +17,9 @@ import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Durability;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.SecondaryConfig;
+import com.sleepycat.je.SecondaryDatabase;
+import com.sleepycat.je.SecondaryKeyCreator;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -66,12 +68,12 @@ public class BDBProvider implements StoreServiceProvider {
 
 			dbconf.setAllowCreate(true);
 			dbconf.setSortedDuplicates(false);
-			this.dbs = openDatabase("bc_bdb", true, false);
+			this.dbs = openDatabase("bc_bdb", true, false)[0];
 			default_dbImpl = new OBDBImpl("_", dbs);
 			dbsByDomains.put("_", default_dbImpl);
 			VersionChecker.check(default_dbImpl);
 		} catch (Throwable t) {
-			log.error("init bc bdb failed",t);
+			log.error("init bc bdb failed", t);
 		}
 	}
 
@@ -90,12 +92,28 @@ public class BDBProvider implements StoreServiceProvider {
 		return new Environment(homeDir, envConfig);
 	}
 
-	private Database openDatabase(String dbName, boolean allowCreate, boolean allowDuplicates) {
+	private Database[] openDatabase(String dbNameP, boolean allowCreate, boolean allowDuplicates) {
 		DatabaseConfig objDbConf = new DatabaseConfig();
 		objDbConf.setAllowCreate(allowCreate);
 		objDbConf.setSortedDuplicates(allowDuplicates);
 		objDbConf.setDeferredWrite(true);
-		return this.dbEnv.openDatabase(null, dbName, objDbConf);
+		String dbsname[] = dbNameP.split("\\.");
+		Database db = this.dbEnv.openDatabase(null, dbsname[0], objDbConf);
+
+		if (dbsname.length == 2) {
+			SecondaryConfig sd = new SecondaryConfig();
+			sd.setAllowCreate(allowCreate);
+			sd.setAllowPopulate(true);
+			sd.setSortedDuplicates(true);
+			sd.setDeferredWrite(true);
+			ODBTupleBinding tb = new ODBTupleBinding();
+			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
+			sd.setKeyCreator(keyCreator);
+			SecondaryDatabase sdb = this.dbEnv.openSecondaryDatabase(null, dbNameP, db, sd);
+			return new Database[] { db, sdb };
+		} else {
+			return new Database[] { db };
+		}
 	}
 
 	@Invalidate
@@ -103,12 +121,12 @@ public class BDBProvider implements StoreServiceProvider {
 		Iterator<String> it = this.dbsByDomains.keySet().iterator();
 		while (it.hasNext()) {
 			try {
-				this.dbsByDomains.get(it.next()).getDbs().close();
+				this.dbsByDomains.get(it.next()).close();
 			} catch (DatabaseException e) {
 				log.warn("close db error", e);
 			}
 		}
-		
+
 		this.dbEnv.close();
 
 	}
@@ -125,9 +143,14 @@ public class BDBProvider implements StoreServiceProvider {
 			synchronized (dbsByDomains) {
 				dbi = dbsByDomains.get(dds.getDomainName());
 				if (dbi == null) {
-					Database db = openDatabase("bc_bdb_" + dds.getDomainName(), true, false);
-					dbi = new OBDBImpl(dds.getDomainName(), db);
+					Database[] dbs = openDatabase("bc_bdb_" + dds.getDomainName(), true, false);
+					if (dbs.length == 1) {
+						dbi = new OBDBImpl(dds.getDomainName(), dbs[0]);
+					} else {
+						dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
+					}
 					dbsByDomains.put(dds.getDomainName(), dbi);
+
 				}
 			}
 		}

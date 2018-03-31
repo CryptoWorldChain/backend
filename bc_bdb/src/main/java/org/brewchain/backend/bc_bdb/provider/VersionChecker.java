@@ -7,7 +7,6 @@ import org.brewchain.bcapi.gens.Oentity.OKey;
 import org.brewchain.bcapi.gens.Oentity.OValue;
 
 import com.google.protobuf.ByteString;
-import com.sleepycat.je.Database;
 
 import lombok.extern.slf4j.Slf4j;
 
