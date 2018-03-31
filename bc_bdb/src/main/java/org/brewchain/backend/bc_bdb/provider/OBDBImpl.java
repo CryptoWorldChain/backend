@@ -9,6 +9,7 @@ import org.brewchain.bcapi.backend.ODBException;
 import org.brewchain.bcapi.backend.ODBHelper;
 import org.brewchain.bcapi.backend.ODBSupport;
 import org.brewchain.bcapi.gens.Oentity.OKey;
+import org.brewchain.bcapi.gens.Oentity.OPair;
 import org.brewchain.bcapi.gens.Oentity.OValue;
 
 import com.google.protobuf.ByteString;
