@@ -69,37 +69,38 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	@Override
 	public Future<OValue[]> batchCompareAndDelete(OKey[] arg0, OValue[] arg1) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
 	public Future<OValue[]> batchCompareAndSwap(OKey[] arg0, OValue[] arg1, OValue[] arg2) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
 	public Future<OValue[]> batchDelete(OKey[] arg0) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
 	public Future<OValue[]> batchPuts(OKey[] arg0, OValue[] arg1) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
 	public Future<OValue> compareAndDelete(OKey arg0, OValue arg1) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
 	public Future<OValue> compareAndSwap(OKey arg0, OValue arg1, OValue arg2) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
 	public Future<OValue> delete(OKey arg0) throws ODBException {
-		return null;
+			return ConcurrentUtils.constantFuture(null);
+
 	}
 
 	@Override
@@ -107,7 +108,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		DatabaseEntry searchEntry = new DatabaseEntry();
 		dbs.get(null, new DatabaseEntry(key.toByteArray()), searchEntry, LockMode.DEFAULT);
 		if (searchEntry.getData() == null) {
-			return null;
+			return ConcurrentUtils.constantFuture(null);
 		} else {
 			OValue v = ODBHelper.b2Value(searchEntry.getData());
 			return ConcurrentUtils.constantFuture(v);
@@ -116,7 +117,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	@Override
 	public Future<OValue[]> list(OKey[] arg0) throws ODBException {
-		return null;
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 	@Override
@@ -145,6 +146,13 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	@Override
 	public Future<OValue> get(String key) throws ODBException {
 		return get(OKey.newBuilder().setData(ByteString.copyFrom(key.getBytes())).build());
+	}
+
+	@Override
+	public Future<OValue> put(String key, OValue value) throws ODBException {
+		return put(OKey.newBuilder().setData(ByteString.copyFrom(key.getBytes())).build()
+				,value);
+
 	}
 
 }
