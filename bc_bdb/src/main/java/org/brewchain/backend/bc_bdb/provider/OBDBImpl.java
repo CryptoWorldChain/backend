@@ -15,19 +15,17 @@ import org.brewchain.bcapi.gens.Oentity.OValue;
 import com.google.protobuf.ByteString;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseEntry;
-import com.sleepycat.je.DiskOrderedCursor;
-import com.sleepycat.je.DiskOrderedCursorConfig;
 import com.sleepycat.je.LockMode;
-import com.sleepycat.je.Transaction;
-import com.sleepycat.je.TransactionConfig;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.SecondaryCursor;
 import com.sleepycat.je.SecondaryDatabase;
+import com.sleepycat.je.Transaction;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.ServiceSpec;
+import onight.tfw.oparam.api.OParam;
 
 @Slf4j
 @Data
@@ -145,6 +143,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 				}
 			}
 			txn.commitSync();
+			
 		} catch (Exception e) {
 			// TODO: handle exception
 		}
@@ -267,7 +266,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		DatabaseEntry keyValue = new DatabaseEntry(key.toByteArray());
 		DatabaseEntry dataValue = new DatabaseEntry(ODBHelper.v2Bytes(v));
 		dbs.put(null, keyValue, dataValue);
-		// dbs.getSearchBoth(txn, key, data, lockMode)
 		trySync();
 		return ConcurrentUtils.constantFuture(v);
 	}
@@ -299,25 +297,36 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	@Override
 
-	public Future<List<OValue>> listBySecondKey(String secondaryName) throws ODBException {
+	public Future<List<OPair>> listBySecondKey(String secondaryName) throws ODBException {
 		if (sdb != null) {
+			SecondaryCursor mySecCursor = null;
 			try {
 				DatabaseEntry secondaryKey = new DatabaseEntry(secondaryName.getBytes("UTF-8"));
+	            DatabaseEntry foundKey = new DatabaseEntry();
 				DatabaseEntry foundData = new DatabaseEntry();
-				DiskOrderedCursorConfig useConfig=new DiskOrderedCursorConfig();
-				useConfig.setKeysOnly(false);
-				useConfig.setQueueSize(100);
-				SecondaryCursor mySecCursor = sdb.openCursor(null,null);
-				List<OValue> ret = new ArrayList<>(); 
-				while (mySecCursor.getNext(secondaryKey, foundData, LockMode.READ_UNCOMMITTED) == OperationStatus.SUCCESS) {
-//					retVal = mySecCursor.getNextDup(secondaryKey, foundData, LockMode.DEFAULT);
+				 mySecCursor = sdb.openSecondaryCursor(null,null);
+				
+	            // Search for the secondary database entry.
+	            OperationStatus retVal =
+						mySecCursor.getSearchKey(secondaryKey, foundKey, foundData, LockMode.DEFAULT);
+				List<OPair> ret = new ArrayList<>(); 
+
+				while(retVal == OperationStatus.SUCCESS) {
 					OValue ov=ODBHelper.b2Value(foundData.getData());
-					ret.add(ov);
-				}
+					OKey key = OKey.newBuilder().mergeFrom(foundKey.getData()).build();
+					ret.add(OPair.newBuilder().setKey(key).setValue(ov).build());
+	                retVal = mySecCursor.getNextDup(secondaryKey, foundKey,
+	                    foundData, LockMode.DEFAULT);
+	            }
+	            
 				return ConcurrentUtils.constantFuture(ret);
 			} catch (Exception e) {
 				log.debug("ODBError",e);
 				return ConcurrentUtils.constantFuture(null);
+			}finally{
+				if(mySecCursor!=null){
+					mySecCursor.close();
+				}
 			}
 		} else {
 			return ConcurrentUtils.constantFuture(null);

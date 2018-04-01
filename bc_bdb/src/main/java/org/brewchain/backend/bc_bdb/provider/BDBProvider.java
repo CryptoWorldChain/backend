@@ -109,6 +109,7 @@ public class BDBProvider implements StoreServiceProvider {
 			ODBTupleBinding tb = new ODBTupleBinding();
 			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
 			sd.setKeyCreator(keyCreator);
+			
 			SecondaryDatabase sdb = this.dbEnv.openSecondaryDatabase(null, dbNameP, db, sd);
 			return new Database[] { db, sdb };
 		} else {
