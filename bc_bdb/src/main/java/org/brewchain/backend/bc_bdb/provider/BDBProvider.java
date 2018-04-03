@@ -8,6 +8,7 @@ import org.apache.felix.ipojo.annotations.Component;
 import org.apache.felix.ipojo.annotations.Instantiate;
 import org.apache.felix.ipojo.annotations.Invalidate;
 import org.apache.felix.ipojo.annotations.Provides;
+import org.apache.felix.ipojo.annotations.ServiceProperty;
 import org.apache.felix.ipojo.annotations.Validate;
 import org.osgi.framework.BundleContext;
 
@@ -21,22 +22,29 @@ import com.sleepycat.je.SecondaryConfig;
 import com.sleepycat.je.SecondaryDatabase;
 import com.sleepycat.je.SecondaryKeyCreator;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import onight.osgi.annotation.iPojoBean;
 import onight.tfw.mservice.NodeHelper;
+import onight.tfw.ntrans.api.ActorService;
 import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.StoreServiceProvider;
 import onight.tfw.outils.conf.PropHelper;
 
 @iPojoBean
 @Component(immediate = true)
-@Instantiate()
-@Provides(specifications = StoreServiceProvider.class, strategy = "SINGLETON")
+@Instantiate(name = "bdb_provider")
+@Provides(specifications = {StoreServiceProvider.class,ActorService.class}, strategy = "SINGLETON")
 @Slf4j
-public class BDBProvider implements StoreServiceProvider {
+@Data
+public class BDBProvider implements StoreServiceProvider ,ActorService{
 
+	@ServiceProperty(name = "name")
+	String name = "bdb_provider";
+
+	
 	BundleContext bundleContext;
 	public static final String defaultEnvironmentFolder = "appdb";
 	@Setter
@@ -151,7 +159,6 @@ public class BDBProvider implements StoreServiceProvider {
 						dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
 					}
 					dbsByDomains.put(dds.getDomainName(), dbi);
-
 				}
 			}
 		}
