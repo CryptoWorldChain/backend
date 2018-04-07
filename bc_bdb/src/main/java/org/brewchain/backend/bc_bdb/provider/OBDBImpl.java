@@ -2,6 +2,7 @@ package org.brewchain.backend.bc_bdb.provider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.concurrent.ConcurrentUtils;
@@ -44,7 +45,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	public OBDBImpl(String domain, Database dbs, Database sdbs) {
 		this.domainName = domain;
 		this.dbs = dbs;
-		this.sdb = (SecondaryDatabase)sdbs;
+		this.sdb = (SecondaryDatabase) sdbs;
 	}
 
 	@Override
@@ -64,19 +65,24 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	public void trySync() {
 		if (autoSync && dbs != null) {
-			dbs.sync();
+			// 如果是transactionl，不允许sync
+			if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
+				dbs.sync();
+			}
 		}
 	}
-	public void close(){
+
+	public void close() {
 		dbs.close();
-		if(sdb!=null)
-		{
+		if (sdb != null) {
 			sdb.close();
 		}
 	}
 
 	public void sync() {
-		dbs.sync();
+		if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
+			dbs.sync();
+		}
 	}
 
 	@Override
@@ -111,7 +117,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
-			txn.commitSync();
 		} catch (Exception e) {
 			// TODO: handle exception
 		}
@@ -142,8 +147,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
-			txn.commitSync();
-			
 		} catch (Exception e) {
 			// TODO: handle exception
 		}
@@ -159,7 +162,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			for (OKey key : keys) {
 				this.dbs.delete(txn, new DatabaseEntry(key.toByteArray()));
 			}
-			txn.commitSync();
+
 		} catch (Exception ex) {
 			txn.abort();
 			log.error("fail to batch delete::ex=" + ex);
@@ -175,11 +178,14 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			// need TransactionConfig?
 			txn = this.dbs.getEnvironment().beginTransaction(null, null);
 			for (int i = 0; i < keys.length; i++) {
-				this.dbs.put(txn, new DatabaseEntry(keys[i].toByteArray()),
+				OperationStatus os = this.dbs.put(txn, new DatabaseEntry(keys[i].toByteArray()),
 						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
+
+				log.debug(os.toString());
 			}
-			txn.commitSync();
+			txn.commit();
 		} catch (Exception ex) {
+			ex.printStackTrace();
 			txn.abort();
 			log.error("fail to batch put::ex=" + ex);
 
@@ -302,35 +308,63 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			SecondaryCursor mySecCursor = null;
 			try {
 				DatabaseEntry secondaryKey = new DatabaseEntry(secondaryName.getBytes("UTF-8"));
-	            DatabaseEntry foundKey = new DatabaseEntry();
+				DatabaseEntry foundKey = new DatabaseEntry();
 				DatabaseEntry foundData = new DatabaseEntry();
-				 mySecCursor = sdb.openSecondaryCursor(null,null);
-				
-	            // Search for the secondary database entry.
-	            OperationStatus retVal =
-						mySecCursor.getSearchKey(secondaryKey, foundKey, foundData, LockMode.DEFAULT);
-				List<OPair> ret = new ArrayList<>(); 
+				mySecCursor = sdb.openSecondaryCursor(null, null);
 
-				while(retVal == OperationStatus.SUCCESS) {
-					OValue ov=ODBHelper.b2Value(foundData.getData());
+				// Search for the secondary database entry.
+				OperationStatus retVal = mySecCursor.getSearchKey(secondaryKey, foundKey, foundData, LockMode.DEFAULT);
+				List<OPair> ret = new ArrayList<>();
+
+				while (retVal == OperationStatus.SUCCESS) {
+					OValue ov = ODBHelper.b2Value(foundData.getData());
 					OKey key = OKey.newBuilder().mergeFrom(foundKey.getData()).build();
 					ret.add(OPair.newBuilder().setKey(key).setValue(ov).build());
-	                retVal = mySecCursor.getNextDup(secondaryKey, foundKey,
-	                    foundData, LockMode.DEFAULT);
-	            }
-	            
+					retVal = mySecCursor.getNextDup(secondaryKey, foundKey, foundData, LockMode.DEFAULT);
+				}
+
 				return ConcurrentUtils.constantFuture(ret);
 			} catch (Exception e) {
-				log.debug("ODBError",e);
+				log.debug("ODBError", e);
 				return ConcurrentUtils.constantFuture(null);
-			}finally{
-				if(mySecCursor!=null){
+			} finally {
+				if (mySecCursor != null) {
 					mySecCursor.close();
 				}
 			}
 		} else {
 			return ConcurrentUtils.constantFuture(null);
 		}
+	}
+
+	@Override
+	public Future<List<OPair>> putBySecondKey(String arg0, OValue[] arg1) throws ODBException {
+		throw new RuntimeException("Not supported");
+	}
+
+	@Override
+	public Future<List<OPair>> removeBySecondKey(String secondaryName, OKey[] keys) throws ODBException {
+		// 取出一个key
+		try {
+			List<OPair> list = listBySecondKey(secondaryName).get();
+			List<OKey> existsKeys = new ArrayList<OKey>();
+			for (OPair oPair : list) {
+				for (OKey oKey : keys) {
+					if (oPair.getKey().equals(oKey)) {
+						existsKeys.add(oKey);
+					}
+				}
+			}
+			batchDelete((OKey[]) existsKeys.toArray());
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return null;
 	}
 
 }

@@ -97,6 +97,7 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		envConfig.setDurability(Durability.COMMIT_SYNC);
 		envConfig.setAllowCreate(true);
+		envConfig.setTransactional(true);
 		return new Environment(homeDir, envConfig);
 	}
 
@@ -104,7 +105,9 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 		DatabaseConfig objDbConf = new DatabaseConfig();
 		objDbConf.setAllowCreate(allowCreate);
 		objDbConf.setSortedDuplicates(allowDuplicates);
-		objDbConf.setDeferredWrite(true);
+		objDbConf.setDeferredWrite(false);
+		objDbConf.setTransactional(true);
+		
 		String dbsname[] = dbNameP.split("\\.");
 		Database db = this.dbEnv.openDatabase(null, dbsname[0], objDbConf);
 
@@ -113,7 +116,8 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 			sd.setAllowCreate(allowCreate);
 			sd.setAllowPopulate(true);
 			sd.setSortedDuplicates(true);
-			sd.setDeferredWrite(true);
+			sd.setDeferredWrite(false);
+			sd.setTransactional(true);
 			ODBTupleBinding tb = new ODBTupleBinding();
 			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
 			sd.setKeyCreator(keyCreator);
