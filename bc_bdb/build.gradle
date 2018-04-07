@@ -4,15 +4,15 @@ buildscript {
 		classpath "onight.osgi:zpp-gradle:3.0.0"
 	 }
 }
-version = '3.0.0'
-project.group='org.brewchain.backend'
+version = '3.0.2'
+project.group='org.brewchain'
 
 apply plugin: 'zippo'
 
 dependencies { 
 	includeInJar "com.sleepycat:je:5.0.73"
 	compile ("org.fc.zippo:org.fc.zippo.oapi:3.3.0")
-	compile ("org.brewchain:org.brewchain.bcapi:3.2.4")
+	compile ("org.brewchain:org.brewchain.bcapi:3.2.5")
 }
 
 jar {
