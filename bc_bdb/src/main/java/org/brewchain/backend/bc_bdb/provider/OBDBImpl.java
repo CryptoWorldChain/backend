@@ -348,14 +348,19 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		try {
 			List<OPair> list = listBySecondKey(secondaryName).get();
 			List<OKey> existsKeys = new ArrayList<OKey>();
+			List<OValue> existsValues = new ArrayList<OValue>();
 			for (OPair oPair : list) {
 				for (OKey oKey : keys) {
 					if (oPair.getKey().equals(oKey)) {
 						existsKeys.add(oKey);
+						OValue.Builder oOValue = oPair.getValue().toBuilder();
+						oOValue.setSecondKey("tx_deleted");
+						existsValues.add(oOValue.build());
 					}
 				}
 			}
 			batchDelete((OKey[]) existsKeys.toArray());
+			batchPuts((OKey[]) existsKeys.toArray(), (OValue[]) existsValues.toArray());
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
