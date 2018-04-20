@@ -180,8 +180,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			for (int i = 0; i < keys.length; i++) {
 				OperationStatus os = this.dbs.put(txn, new DatabaseEntry(keys[i].toByteArray()),
 						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
-
-				log.debug(os.toString());
 			}
 			txn.commit();
 		} catch (Exception ex) {
