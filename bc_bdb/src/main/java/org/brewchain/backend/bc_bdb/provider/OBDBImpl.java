@@ -163,7 +163,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 				this.dbs.delete(txn, new DatabaseEntry(key.toByteArray()));
 			}
 			txn.commit();
-
 		} catch (Exception ex) {
 			txn.abort();
 			log.error("fail to batch delete::ex=" + ex);
