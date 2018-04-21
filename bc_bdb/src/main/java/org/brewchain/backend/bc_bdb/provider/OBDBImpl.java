@@ -162,6 +162,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			for (OKey key : keys) {
 				this.dbs.delete(txn, new DatabaseEntry(key.toByteArray()));
 			}
+			txn.commit();
 
 		} catch (Exception ex) {
 			txn.abort();
