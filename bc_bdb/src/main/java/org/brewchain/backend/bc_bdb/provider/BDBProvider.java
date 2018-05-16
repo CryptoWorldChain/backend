@@ -1,6 +1,8 @@
 package org.brewchain.backend.bc_bdb.provider;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Iterator;
 
@@ -37,15 +39,14 @@ import onight.tfw.outils.conf.PropHelper;
 @iPojoBean
 @Component(immediate = true)
 @Instantiate(name = "bdb_provider")
-@Provides(specifications = {StoreServiceProvider.class,ActorService.class}, strategy = "SINGLETON")
+@Provides(specifications = { StoreServiceProvider.class, ActorService.class }, strategy = "SINGLETON")
 @Slf4j
 @Data
-public class BDBProvider implements StoreServiceProvider ,ActorService{
+public class BDBProvider implements StoreServiceProvider, ActorService {
 
 	@ServiceProperty(name = "name")
 	String name = "bdb_provider";
 
-	
 	BundleContext bundleContext;
 	public static final String defaultEnvironmentFolder = "appdb";
 	@Setter
@@ -73,12 +74,12 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 			params = new PropHelper(bundleContext);
 			String dir = params.get("org.bc.obdb.dir", "odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
 			this.dbEnv = initDatabaseEnvironment(dir);
-//			DatabaseConfig dbconf = new DatabaseConfig();
-//
-//			dbconf.setAllowCreate(true);
-//			dbconf.setSortedDuplicates(false);
-//			dbconf.setTransactional(true);
-			
+			// DatabaseConfig dbconf = new DatabaseConfig();
+			//
+			// dbconf.setAllowCreate(true);
+			// dbconf.setSortedDuplicates(false);
+			// dbconf.setTransactional(true);
+
 			this.dbs = openDatabase("bc_bdb", true, false)[0];
 			default_dbImpl = new OBDBImpl("_", dbs);
 			dbsByDomains.put("_", default_dbImpl);
@@ -94,7 +95,21 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 		File homeDir = new File(folder);
 		if (!homeDir.exists()) {
 			if (!homeDir.mkdir()) {
-				throw new PersistentMapException("");
+				throw new PersistentMapException("make db floder error");
+			} else {
+				// copy default db
+				String defaultDbDir = params.get("org.bc.obdb.dir", "persistence");
+				String defaultDbFile = defaultDbDir + "/00000000.jdb";
+				File defaultDbFolder = new File(defaultDbFile);
+				if (defaultDbFolder.exists()) {
+					try {
+						log.debug("init db");
+						defaultDbFolder.renameTo(new File(homeDir, defaultDbFolder.getName()));
+						// Files.copy(defaultDbFile, homeDir.geto)
+					} catch (Exception e) {
+						log.error("copy db ex:", e);
+					}
+				}
 			}
 		}
 		EnvironmentConfig envConfig = new EnvironmentConfig();
@@ -111,7 +126,7 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 		objDbConf.setSortedDuplicates(allowDuplicates);
 		objDbConf.setDeferredWrite(false);
 		objDbConf.setTransactional(true);
-		
+
 		String dbsname[] = dbNameP.split("\\.");
 
 		Database db = this.dbEnv.openDatabase(null, dbsname[0], objDbConf);
@@ -125,7 +140,7 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 			ODBTupleBinding tb = new ODBTupleBinding();
 			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
 			sd.setKeyCreator(keyCreator);
-			
+
 			SecondaryDatabase sdb = this.dbEnv.openSecondaryDatabase(null, dbNameP, db, sd);
 			return new Database[] { db, sdb };
 		} else {
