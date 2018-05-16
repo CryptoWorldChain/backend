@@ -98,12 +98,12 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				throw new PersistentMapException("make db floder error");
 			} else {
 				// copy default db
-				String defaultDbDir = params.get("org.bc.obdb.dir", "persistence");
+				String defaultDbDir = params.get("org.bc.obdb.dir", "genesis");
 				String defaultDbFile = defaultDbDir + "/00000000.jdb";
 				File defaultDbFolder = new File(defaultDbFile);
 				if (defaultDbFolder.exists()) {
 					try {
-						log.debug("init db");
+						log.info("init genesis db from:"+defaultDbFolder.getAbsolutePath()+",size="+defaultDbFile.length());
 						defaultDbFolder.renameTo(new File(homeDir, defaultDbFolder.getName()));
 						// Files.copy(defaultDbFile, homeDir.geto)
 					} catch (Exception e) {
