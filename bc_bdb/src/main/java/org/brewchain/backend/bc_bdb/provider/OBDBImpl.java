@@ -73,9 +73,9 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	public void trySync() {
 		if (autoSync && dbs != null) {
 			// 如果是transactionl，不允许sync
-			// if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
-			dbs.sync();
-			// }
+			if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
+				dbs.sync();
+			}
 		}
 	}
 
@@ -87,9 +87,9 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	}
 
 	public void sync() {
-		// if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
-		dbs.sync();
-		// }
+		if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
+			dbs.sync();
+		}
 	}
 
 	@Override
