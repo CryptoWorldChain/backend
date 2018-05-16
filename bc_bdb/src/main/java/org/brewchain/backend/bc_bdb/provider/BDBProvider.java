@@ -18,6 +18,7 @@ import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Durability;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.EnvironmentMutableConfig;
 import com.sleepycat.je.SecondaryConfig;
 import com.sleepycat.je.SecondaryDatabase;
 import com.sleepycat.je.SecondaryKeyCreator;
@@ -72,10 +73,12 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 			params = new PropHelper(bundleContext);
 			String dir = params.get("org.bc.obdb.dir", "odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
 			this.dbEnv = initDatabaseEnvironment(dir);
-			DatabaseConfig dbconf = new DatabaseConfig();
-
-			dbconf.setAllowCreate(true);
-			dbconf.setSortedDuplicates(false);
+//			DatabaseConfig dbconf = new DatabaseConfig();
+//
+//			dbconf.setAllowCreate(true);
+//			dbconf.setSortedDuplicates(false);
+//			dbconf.setTransactional(true);
+			
 			this.dbs = openDatabase("bc_bdb", true, false)[0];
 			default_dbImpl = new OBDBImpl("_", dbs);
 			dbsByDomains.put("_", default_dbImpl);
@@ -95,6 +98,7 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 			}
 		}
 		EnvironmentConfig envConfig = new EnvironmentConfig();
+		// TODO db性能调优
 		envConfig.setDurability(Durability.COMMIT_SYNC);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
@@ -109,8 +113,8 @@ public class BDBProvider implements StoreServiceProvider ,ActorService{
 		objDbConf.setTransactional(true);
 		
 		String dbsname[] = dbNameP.split("\\.");
-		Database db = this.dbEnv.openDatabase(null, dbsname[0], objDbConf);
 
+		Database db = this.dbEnv.openDatabase(null, dbsname[0], objDbConf);
 		if (dbsname.length == 2) {
 			SecondaryConfig sd = new SecondaryConfig();
 			sd.setAllowCreate(allowCreate);

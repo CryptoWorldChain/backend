@@ -14,6 +14,7 @@ import org.brewchain.bcapi.gens.Oentity.OPair;
 import org.brewchain.bcapi.gens.Oentity.OValue;
 
 import com.google.protobuf.ByteString;
+import com.sleepycat.je.CursorConfig;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.LockMode;
@@ -21,6 +22,7 @@ import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.SecondaryCursor;
 import com.sleepycat.je.SecondaryDatabase;
 import com.sleepycat.je.Transaction;
+import com.sleepycat.je.TransactionConfig;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -36,16 +38,21 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	private SecondaryDatabase sdb;
 
 	private boolean autoSync = true;
+	private TransactionConfig txnConfig;
 
 	public OBDBImpl(String domain, Database dbs) {
 		this.domainName = domain;
 		this.dbs = dbs;
+		txnConfig = new TransactionConfig();
+		txnConfig.setReadCommitted(true);
 	}
 
 	public OBDBImpl(String domain, Database dbs, Database sdbs) {
 		this.domainName = domain;
 		this.dbs = dbs;
 		this.sdb = (SecondaryDatabase) sdbs;
+		txnConfig = new TransactionConfig();
+		txnConfig.setReadCommitted(true);
 	}
 
 	@Override
@@ -66,9 +73,9 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	public void trySync() {
 		if (autoSync && dbs != null) {
 			// 如果是transactionl，不允许sync
-			if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
-				dbs.sync();
-			}
+			// if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
+			dbs.sync();
+			// }
 		}
 	}
 
@@ -80,9 +87,9 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	}
 
 	public void sync() {
-		if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
-			dbs.sync();
-		}
+		// if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
+		dbs.sync();
+		// }
 	}
 
 	@Override
@@ -100,7 +107,8 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		Transaction txn = null;
 		List<OValue> list = new ArrayList<OValue>();
 		try {
-			txn = this.dbs.getEnvironment().beginTransaction(null, null);
+			// TODO db性能调优
+			txn = this.dbs.getEnvironment().beginTransaction(null, this.txnConfig);
 			for (int i = 0; i < keys.length; i++) {
 				DatabaseEntry searchEntry = new DatabaseEntry();
 				dbs.get(txn, new DatabaseEntry(keys[i].toByteArray()), searchEntry, LockMode.DEFAULT);
@@ -117,8 +125,14 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
+			txn.commit();
 		} catch (Exception e) {
-			// TODO: handle exception
+			log.error("fail to batch compare and delete::ex=" + e);
+
+			if (txn != null) {
+				txn.abort();
+				txn = null;
+			}
 		}
 		return ConcurrentUtils.constantFuture((OValue[]) list.toArray());
 	}
@@ -129,7 +143,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		Transaction txn = null;
 		List<OValue> list = new ArrayList<OValue>();
 		try {
-			txn = this.dbs.getEnvironment().beginTransaction(null, null);
+			txn = this.dbs.getEnvironment().beginTransaction(null, this.txnConfig);
 			for (int i = 0; i < keys.length; i++) {
 				DatabaseEntry searchEntry = new DatabaseEntry();
 				dbs.get(txn, new DatabaseEntry(keys[i].toByteArray()), searchEntry, LockMode.DEFAULT);
@@ -147,8 +161,14 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
+			txn.commit();
 		} catch (Exception e) {
-			// TODO: handle exception
+			log.error("fail to batch swap::ex=" + e);
+
+			if (txn != null) {
+				txn.abort();
+				txn = null;
+			}
 		}
 		return ConcurrentUtils.constantFuture((OValue[]) list.toArray());
 	}
@@ -158,13 +178,16 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		Transaction txn = null;
 		try {
 			// need TransactionConfig?
-			txn = this.dbs.getEnvironment().beginTransaction(null, null);
+			txn = this.dbs.getEnvironment().beginTransaction(null, this.txnConfig);
 			for (OKey key : keys) {
 				this.dbs.delete(txn, new DatabaseEntry(key.toByteArray()));
 			}
 			txn.commit();
 		} catch (Exception ex) {
-			txn.abort();
+			if (txn != null) {
+				txn.abort();
+				txn = null;
+			}
 			log.error("fail to batch delete::ex=" + ex);
 		}
 
@@ -176,15 +199,17 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		Transaction txn = null;
 		try {
 			// need TransactionConfig?
-			txn = this.dbs.getEnvironment().beginTransaction(null, null);
+			txn = this.dbs.getEnvironment().beginTransaction(null, this.txnConfig);
 			for (int i = 0; i < keys.length; i++) {
 				OperationStatus os = this.dbs.put(txn, new DatabaseEntry(keys[i].toByteArray()),
 						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
 			}
 			txn.commit();
 		} catch (Exception ex) {
-			ex.printStackTrace();
-			txn.abort();
+			if (txn != null) {
+				txn.abort();
+				txn = null;
+			}
 			log.error("fail to batch put::ex=" + ex);
 
 		}
@@ -308,7 +333,12 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 				DatabaseEntry secondaryKey = new DatabaseEntry(secondaryName.getBytes("UTF-8"));
 				DatabaseEntry foundKey = new DatabaseEntry();
 				DatabaseEntry foundData = new DatabaseEntry();
-				mySecCursor = sdb.openSecondaryCursor(null, null);
+
+				CursorConfig oCursorConfig = new CursorConfig();
+
+				// mySecCursor = sdb.openSecondaryCursor(null, null);
+				oCursorConfig.setReadCommitted(true);
+				mySecCursor = sdb.openCursor(null, oCursorConfig);
 
 				// Search for the secondary database entry.
 				OperationStatus retVal = mySecCursor.getSearchKey(secondaryKey, foundKey, foundData, LockMode.DEFAULT);
