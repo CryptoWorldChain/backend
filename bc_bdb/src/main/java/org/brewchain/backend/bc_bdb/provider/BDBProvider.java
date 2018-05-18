@@ -1,7 +1,10 @@
 package org.brewchain.backend.bc_bdb.provider;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -103,8 +106,24 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				File defaultDbFolder = new File(defaultDbFile);
 				if (defaultDbFolder.exists()) {
 					try {
-						log.info("init genesis db from:"+defaultDbFolder.getAbsolutePath()+",size="+defaultDbFile.length());
-						defaultDbFolder.renameTo(new File(homeDir, defaultDbFolder.getName()));
+						log.info("init genesis db from:" + defaultDbFolder.getAbsolutePath() + ",size="
+								+ defaultDbFile.length());
+
+						try {
+							FileInputStream input = new FileInputStream(defaultDbFile);
+							FileOutputStream output = new FileOutputStream(folder + "/00000000.jdb");
+							int in = input.read();
+							while (in != -1) {
+								output.write(in);
+								in = input.read();
+							}
+
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+
+						// defaultDbFolder.renameTo(new File(homeDir,
+						// defaultDbFolder.getName()));
 						// Files.copy(defaultDbFile, homeDir.geto)
 					} catch (Exception e) {
 						log.error("copy db ex:", e);
