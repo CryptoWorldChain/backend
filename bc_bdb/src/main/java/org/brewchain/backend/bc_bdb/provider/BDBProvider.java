@@ -1,13 +1,17 @@
 package org.brewchain.backend.bc_bdb.provider;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.felix.ipojo.annotations.Component;
 import org.apache.felix.ipojo.annotations.Instantiate;
@@ -56,7 +60,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Getter
 	String rootPath = "fbs";
 	private HashMap<String, OBDBImpl> dbsByDomains = new HashMap<>();
-	private Environment dbEnv;
+	private Environment dbEnv = null;
 
 	public BDBProvider(BundleContext bundleContext) {
 		this.bundleContext = bundleContext;
@@ -74,35 +78,90 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Validate
 	public void startup() {
 		try {
-			params = new PropHelper(bundleContext);
-			String dir = params.get("org.bc.obdb.dir", "odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
-			this.dbEnv = initDatabaseEnvironment(dir);
-			// DatabaseConfig dbconf = new DatabaseConfig();
-			//
-			// dbconf.setAllowCreate(true);
-			// dbconf.setSortedDuplicates(false);
-			// dbconf.setTransactional(true);
+			new Thread(new DBStartThread()).start();
 
-			this.dbs = openDatabase("bc_bdb", true, false)[0];
-			default_dbImpl = new OBDBImpl("_", dbs);
-			dbsByDomains.put("_", default_dbImpl);
-			VersionChecker.check(default_dbImpl);
+			// params = new PropHelper(bundleContext);
+			// String dir = params.get("org.bc.obdb.dir", "odb." +
+			// Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
+			//
+			// this.dbEnv = initDatabaseEnvironment(dir);
+			// this.dbs = openDatabase("bc_bdb", true, false)[0];
+			// default_dbImpl = new OBDBImpl("_", dbs);
+			// dbsByDomains.put("_", default_dbImpl);
+			// VersionChecker.check(default_dbImpl);
 		} catch (Throwable t) {
 			log.error("init bc bdb failed", t);
+		}
+	}
+
+	class DBStartThread extends Thread {
+		@Override
+		public void run() {
+			try {
+				params = new PropHelper(bundleContext);
+				String dir = params.get("org.bc.obdb.dir",
+						"odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
+
+				dbEnv = initDatabaseEnvironment(dir);
+				dbs = openDatabase("bc_bdb", true, false)[0];
+				default_dbImpl = new OBDBImpl("_", dbs);
+				dbsByDomains.put("_", default_dbImpl);
+				VersionChecker.check(default_dbImpl);
+
+				HashMap<String, OBDBImpl> tempDbsByDomains = new HashMap<String, OBDBImpl>();
+				for (String domainName : tempDomainName) {
+					OBDBImpl dbi = dbsByDomains.get(domainName);
+					if (dbi == null) {
+						Database[] dbs = openDatabase("bc_bdb_" + domainName, true, false);
+						if (dbs.length == 1) {
+							dbi = new OBDBImpl(domainName, dbs[0]);
+						} else {
+							dbi = new OBDBImpl(domainName, dbs[0], dbs[1]);
+						}
+						tempDbsByDomains.put(domainName, dbi);
+						log.debug("delay inject dao::" + domainName);
+					}
+				}
+				dbsByDomains.putAll(tempDbsByDomains);
+			} catch (Exception e) {
+				log.error("dao注入异常", e);
+			}
 		}
 	}
 
 	private Database dbs;
 
 	private Environment initDatabaseEnvironment(String folder) {
+		String network = this.params.get("org.bc.manage.node.network", null);
+		if (network == null || network.isEmpty()) {
+			try {
+				File networkFile = new File(".network");
+				while (!networkFile.exists() || !networkFile.canRead()) {
+					log.debug("等待读取network设置");
+					Thread.sleep(1000);
+				}
+
+				FileReader fr = new FileReader(networkFile.getPath());
+				BufferedReader br = new BufferedReader(fr);
+				network = br.readLine();
+				br.close();
+				fr.close();
+
+				log.debug("choose the network::" + network);
+			} catch (Exception e) {
+				log.error("error on read network::" + e.getMessage());
+			}
+		}
+
+		folder = network.trim() + "/" + folder;
 		File homeDir = new File(folder);
 		if (!homeDir.exists()) {
-			if (!homeDir.mkdir()) {
+			if (!homeDir.mkdirs()) {
 				throw new PersistentMapException("make db floder error");
 			} else {
 				// copy default db
 				String defaultDbDir = params.get("org.bc.obdb.dir", "genesis");
-				String defaultDbFile = defaultDbDir + "/00000000.jdb";
+				String defaultDbFile = defaultDbDir + "/" + network + "/00000000.jdb";
 				File defaultDbFolder = new File(defaultDbFile);
 				if (defaultDbFolder.exists()) {
 					try {
@@ -117,14 +176,9 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 								output.write(in);
 								in = input.read();
 							}
-
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
-
-						// defaultDbFolder.renameTo(new File(homeDir,
-						// defaultDbFolder.getName()));
-						// Files.copy(defaultDbFile, homeDir.geto)
 					} catch (Exception e) {
 						log.error("copy db ex:", e);
 					}
@@ -187,6 +241,8 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		return "bc_bdb";
 	}
 
+	private List<String> tempDomainName = new ArrayList<String>();
+
 	@Override
 	public DomainDaoSupport getDaoByBeanName(DomainDaoSupport dds) {
 		OBDBImpl dbi = dbsByDomains.get(dds.getDomainName());
@@ -194,13 +250,28 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 			synchronized (dbsByDomains) {
 				dbi = dbsByDomains.get(dds.getDomainName());
 				if (dbi == null) {
-					Database[] dbs = openDatabase("bc_bdb_" + dds.getDomainName(), true, false);
-					if (dbs.length == 1) {
-						dbi = new OBDBImpl(dds.getDomainName(), dbs[0]);
+					if (this.dbEnv == null) {
+						boolean isExists = false;
+						for (int i = 0; i < tempDomainName.size(); i++) {
+							if (tempDomainName.get(i).equals(dds.getDomainName())) {
+								isExists = true;
+								break;
+							}
+						}
+						if (!isExists) {
+							tempDomainName.add(dds.getDomainName());
+						}
+						dbi = new OBDBImpl("temp", null);
 					} else {
-						dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
+						Database[] dbs = openDatabase("bc_bdb_" + dds.getDomainName(), true, false);
+						if (dbs.length == 1) {
+							dbi = new OBDBImpl(dds.getDomainName(), dbs[0]);
+						} else {
+							dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
+						}
+						dbsByDomains.put(dds.getDomainName(), dbi);
+						log.debug("inject dao::" + dds.getDomainName());
 					}
-					dbsByDomains.put(dds.getDomainName(), dbi);
 				}
 			}
 		}
