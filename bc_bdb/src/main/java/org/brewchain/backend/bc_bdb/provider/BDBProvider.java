@@ -132,12 +132,12 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	private Database dbs;
 
 	private Environment initDatabaseEnvironment(String folder) {
-		String network = this.params.get("org.bc.manage.node.network", null);
+		String network = this.params.get("org.bc.manage.node.net", null);
 		if (network == null || network.isEmpty()) {
 			try {
-				File networkFile = new File(".network");
+				File networkFile = new File(".chainnet");
 				while (!networkFile.exists() || !networkFile.canRead()) {
-					log.debug("等待读取network设置");
+					log.debug("等待读取chainnet设置");
 					Thread.sleep(1000);
 				}
 
