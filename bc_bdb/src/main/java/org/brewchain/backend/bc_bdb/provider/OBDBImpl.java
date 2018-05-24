@@ -57,7 +57,12 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	@Override
 	public DomainDaoSupport getDaosupport() {
-		return this;
+
+		if (dbs != null) {
+			return this;
+		} else {
+			return null;
+		}
 	}
 
 	@Override
@@ -80,7 +85,9 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	}
 
 	public void close() {
-		dbs.close();
+		if (dbs != null) {
+			dbs.close();
+		}
 		if (sdb != null) {
 			sdb.close();
 		}

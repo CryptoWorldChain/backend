@@ -104,25 +104,25 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 				dbEnv = initDatabaseEnvironment(dir);
 				dbs = openDatabase("bc_bdb", true, false)[0];
-				default_dbImpl = new OBDBImpl("_", dbs);
-				dbsByDomains.put("_", default_dbImpl);
-				VersionChecker.check(default_dbImpl);
+				synchronized (dbsByDomains) {
+					default_dbImpl = new OBDBImpl("_", dbs);
+					dbsByDomains.put("_", default_dbImpl);
+					VersionChecker.check(default_dbImpl);
 
-				HashMap<String, OBDBImpl> tempDbsByDomains = new HashMap<String, OBDBImpl>();
-				for (String domainName : tempDomainName) {
-					OBDBImpl dbi = dbsByDomains.get(domainName);
-					if (dbi == null) {
-						Database[] dbs = openDatabase("bc_bdb_" + domainName, true, false);
-						if (dbs.length == 1) {
-							dbi = new OBDBImpl(domainName, dbs[0]);
-						} else {
-							dbi = new OBDBImpl(domainName, dbs[0], dbs[1]);
+					for (String domainName : dbsByDomains.keySet()) {
+						OBDBImpl dbi = dbsByDomains.get(domainName);
+						if (dbi.getDbs() == null) {
+							Database[] dbs = openDatabase("bc_bdb_" + domainName, true, false);
+							if (dbs.length == 1) {
+								dbi.setDbs(dbs[0]);
+							} else {
+								dbi.setDbs(dbs[0]);
+								dbi.setSdb((SecondaryDatabase) dbs[1]);
+							}
+							log.debug("delay inject dao::" + domainName);
 						}
-						tempDbsByDomains.put(domainName, dbi);
-						log.debug("delay inject dao::" + domainName);
 					}
 				}
-				dbsByDomains.putAll(tempDbsByDomains);
 			} catch (Exception e) {
 				log.error("dao注入异常", e);
 			}
@@ -231,8 +231,10 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				log.warn("close db error", e);
 			}
 		}
-
-		this.dbEnv.close();
+		if(this.dbEnv!=null)
+		{
+			this.dbEnv.close();
+		}
 
 	}
 
@@ -251,17 +253,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				dbi = dbsByDomains.get(dds.getDomainName());
 				if (dbi == null) {
 					if (this.dbEnv == null) {
-						boolean isExists = false;
-						for (int i = 0; i < tempDomainName.size(); i++) {
-							if (tempDomainName.get(i).equals(dds.getDomainName())) {
-								isExists = true;
-								break;
-							}
-						}
-						if (!isExists) {
-							tempDomainName.add(dds.getDomainName());
-						}
-						dbi = new OBDBImpl("temp", null);
+						dbi = new OBDBImpl(dds.getDomainName(), null);
 					} else {
 						Database[] dbs = openDatabase("bc_bdb_" + dds.getDomainName(), true, false);
 						if (dbs.length == 1) {
@@ -269,9 +261,9 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 						} else {
 							dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
 						}
-						dbsByDomains.put(dds.getDomainName(), dbi);
-						log.debug("inject dao::" + dds.getDomainName());
 					}
+					dbsByDomains.put(dds.getDomainName(), dbi);
+					log.debug("inject dao::" + dds.getDomainName());
 				}
 			}
 		}
