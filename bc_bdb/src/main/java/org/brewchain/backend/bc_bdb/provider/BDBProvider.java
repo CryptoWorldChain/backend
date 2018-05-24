@@ -153,44 +153,49 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 			}
 		}
 
-		folder = network.trim() + "/" + folder;
-		File homeDir = new File(folder);
-		if (!homeDir.exists()) {
-			if (!homeDir.mkdirs()) {
-				throw new PersistentMapException("make db floder error");
+		folder = network.trim() + File.separator + folder;
+		File dbHomeFile = new File(folder);
+		File dbFile = new File(folder + File.separator + "00000000.jdb");
+		String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
+		String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "00000000.jdb";
+		File genesisDbFile = new File(genesisDbFileStr);
+
+		if (!genesisDbFile.exists()) {
+			genesisDbFile.getParentFile().mkdirs();
+		}
+		if (!dbHomeFile.exists()) {
+			dbHomeFile.mkdirs();
+		}
+		if (!dbFile.exists() && genesisDbFile.exists()) {
+			if (!dbHomeFile.exists() && !dbHomeFile.mkdirs()) {
+				throw new PersistentMapException("make db folder error");
 			} else {
 				// copy default db
-				String defaultDbDir = params.get("org.bc.obdb.dir", "genesis");
-				String defaultDbFile = defaultDbDir + "/" + network + "/00000000.jdb";
-				File defaultDbFolder = new File(defaultDbFile);
-				if (defaultDbFolder.exists()) {
-					try {
-						log.info("init genesis db from:" + defaultDbFolder.getAbsolutePath() + ",size="
-								+ defaultDbFile.length());
-
-						try {
-							FileInputStream input = new FileInputStream(defaultDbFile);
-							FileOutputStream output = new FileOutputStream(folder + "/00000000.jdb");
-							int in = input.read();
-							while (in != -1) {
-								output.write(in);
-								in = input.read();
-							}
-						} catch (IOException e) {
-							e.printStackTrace();
+				try {
+					log.info("init genesis db from:" + genesisDbFile.getAbsolutePath() + ",size="
+							+ genesisDbFile.length());
+					try (FileInputStream input = new FileInputStream(genesisDbFile);
+							FileOutputStream output = new FileOutputStream(folder + File.separator + "00000000.jdb");) {
+						byte[] bb = new byte[10240];
+						int size = 0;
+						while ((size = input.read(bb)) > 0) {
+							output.write(bb, 0, size);
 						}
-					} catch (Exception e) {
-						log.error("copy db ex:", e);
+					} catch (IOException e) {
+						e.printStackTrace();
 					}
+				} catch (Exception e) {
+					log.error("copy db ex:", e);
 				}
 			}
 		}
+
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		// TODO db性能调优
 		envConfig.setDurability(Durability.COMMIT_SYNC);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
-		return new Environment(homeDir, envConfig);
+		return new Environment(dbHomeFile, envConfig);
 	}
 
 	private Database[] openDatabase(String dbNameP, boolean allowCreate, boolean allowDuplicates) {
@@ -231,8 +236,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				log.warn("close db error", e);
 			}
 		}
-		if(this.dbEnv!=null)
-		{
+		if (this.dbEnv != null) {
 			this.dbEnv.close();
 		}
 
