@@ -132,28 +132,31 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	private Database dbs;
 
 	private Environment initDatabaseEnvironment(String folder) {
-		String network = this.params.get("org.bc.manage.node.net", null);
-		if (network == null || network.isEmpty()) {
-			try {
-				File networkFile = new File(".chainnet");
+		String network = "";
+		try {
+			File networkFile = new File(".chainnet");
+			if (!networkFile.exists() || !networkFile.canRead()) {
+				// read default config
+				network = this.params.get("org.bc.manage.node.net", null);
+			}
+			if (network == null || network.isEmpty()) {
 				while (!networkFile.exists() || !networkFile.canRead()) {
-					log.debug("等待读取chainnet设置");
+					log.debug("waiting chain_net config...");
 					Thread.sleep(1000);
 				}
 
 				FileReader fr = new FileReader(networkFile.getPath());
 				BufferedReader br = new BufferedReader(fr);
-				network = br.readLine();
+				network = br.readLine().trim().replace("\r","").replace("\t","");
 				br.close();
 				fr.close();
-
-				log.debug("choose the network::" + network);
-			} catch (Exception e) {
-				log.error("error on read network::" + e.getMessage());
 			}
+			log.debug("choose the chain_net::" + network);
+		} catch (Exception e) {
+			log.error("error on read chain_net::" + e.getMessage());
 		}
 
-		folder = network.trim() + File.separator + folder;
+		folder = network + File.separator + folder;
 		File dbHomeFile = new File(folder);
 		File dbFile = new File(folder + File.separator + "00000000.jdb");
 		String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
