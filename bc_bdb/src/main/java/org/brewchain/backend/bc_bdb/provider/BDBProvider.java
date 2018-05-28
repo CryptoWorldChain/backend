@@ -147,7 +147,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 				FileReader fr = new FileReader(networkFile.getPath());
 				BufferedReader br = new BufferedReader(fr);
-				network = br.readLine().trim().replace("\r","").replace("\t","");
+				network = br.readLine().trim().replace("\r", "").replace("\t", "");
 				br.close();
 				fr.close();
 			}
@@ -156,7 +156,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 			log.error("error on read chain_net::" + e.getMessage());
 		}
 
-		folder = network + File.separator + folder;
+		folder = "db" + File.separator + network + File.separator + folder;
 		File dbHomeFile = new File(folder);
 		File dbFile = new File(folder + File.separator + "00000000.jdb");
 		String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
