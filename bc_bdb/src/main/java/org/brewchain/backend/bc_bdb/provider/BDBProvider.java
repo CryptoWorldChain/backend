@@ -6,12 +6,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.felix.ipojo.annotations.Component;
 import org.apache.felix.ipojo.annotations.Instantiate;
@@ -27,7 +26,6 @@ import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Durability;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
-import com.sleepycat.je.EnvironmentMutableConfig;
 import com.sleepycat.je.SecondaryConfig;
 import com.sleepycat.je.SecondaryDatabase;
 import com.sleepycat.je.SecondaryKeyCreator;
@@ -36,15 +34,13 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import onight.osgi.annotation.iPojoBean;
 import onight.tfw.mservice.NodeHelper;
 import onight.tfw.ntrans.api.ActorService;
 import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.StoreServiceProvider;
 import onight.tfw.outils.conf.PropHelper;
 
-@iPojoBean
-@Component(immediate = true)
+@Component(publicFactory=false)
 @Instantiate(name = "bdb_provider")
 @Provides(specifications = { StoreServiceProvider.class, ActorService.class }, strategy = "SINGLETON")
 @Slf4j
@@ -64,6 +60,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 	public BDBProvider(BundleContext bundleContext) {
 		this.bundleContext = bundleContext;
+		log.debug("new BDBProvider:"+this.hashCode()+":"+this);
 	}
 
 	@Override
@@ -78,6 +75,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Validate
 	public void startup() {
 		try {
+			log.debug("InitDBStart:::"+this);
 			new Thread(new DBStartThread()).start();
 
 			// params = new PropHelper(bundleContext);
@@ -196,6 +194,8 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		// TODO db性能调优
 		envConfig.setDurability(Durability.COMMIT_SYNC);
+		envConfig.setTxnTimeout(params.get("org.brewchain.backend.bdb.txn.timeoutms", 30*1000), TimeUnit.MILLISECONDS);
+		envConfig.setLockTimeout(params.get("org.brewchain.backend.bdb.lock.timeoutms", 30*1000), TimeUnit.MILLISECONDS);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
 		return new Environment(dbHomeFile, envConfig);

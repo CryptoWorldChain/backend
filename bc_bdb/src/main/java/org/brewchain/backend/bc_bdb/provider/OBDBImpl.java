@@ -80,6 +80,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			// 如果是transactionl，不允许sync
 			if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
 				dbs.sync();
+				
 			}
 		}
 	}
