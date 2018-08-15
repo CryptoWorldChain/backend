@@ -2,29 +2,22 @@ package org.brewchain.backend.bc_bdb.provider;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.concurrent.ConcurrentUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.brewchain.bcapi.backend.ODBException;
-import org.brewchain.bcapi.backend.ODBHelper;
 import org.brewchain.bcapi.backend.ODBSupport;
 import org.brewchain.bcapi.gens.Oentity.OKey;
 import org.brewchain.bcapi.gens.Oentity.OPair;
 import org.brewchain.bcapi.gens.Oentity.OValue;
 
 import com.google.protobuf.ByteString;
-import com.sleepycat.je.CursorConfig;
-import com.sleepycat.je.DatabaseEntry;
-import com.sleepycat.je.LockMode;
-import com.sleepycat.je.OperationStatus;
-import com.sleepycat.je.SecondaryCursor;
-import com.sleepycat.je.Transaction;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import onight.tfw.ojpa.api.DomainDaoSupport;
@@ -39,7 +32,9 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	int sliceCount = 1;
 
-	public SlicerOBDBImpl(String domain, OBDBImpl odbs[]) {
+	Executor exec;
+
+	public SlicerOBDBImpl(String domain, OBDBImpl odbs[], Executor exec) {
 		this.odbs = odbs;
 		this.domainName = domain;
 		this.sliceCount = odbs.length;
@@ -89,6 +84,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	public OBDBImpl getDb(OKey key) {
 		return odbs[Math.abs(key.getData().byteAt(0)) % sliceCount];
 	}
+
 	public OBDBImpl getDb(String key) {
 		return odbs[Math.abs(key.getBytes()[0]) % sliceCount];
 	}
@@ -114,6 +110,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		}
 		return kvs;
 	}
+
 	public SlicePair[] seperate(OKey[] keys) {
 		SlicePair[] kvs = new SlicePair[sliceCount];
 		for (int i = 0; i < keys.length; i++) {
@@ -127,6 +124,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		}
 		return kvs;
 	}
+
 	public SlicePair[] seperate(OKey[] keys, OValue[] values, OValue[] newvalues) {
 		SlicePair[] kvs = new SlicePair[sliceCount];
 		for (int i = 0; i < keys.length; i++) {
@@ -167,13 +165,15 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	@Override
 	public Future<OValue[]> batchCompareAndSwap(OKey[] keys, OValue[] compareValues, OValue[] newValues)
 			throws ODBException {
-		SlicePair[] kvs = seperate(keys, compareValues,newValues);
+		SlicePair[] kvs = seperate(keys, compareValues, newValues);
 		List<OValue> list = new ArrayList<OValue>();
 		for (int i = 0; i < sliceCount; i++) {
 			if (kvs[i] != null) {
 				try {
-					OValue[] ret = odbs[i].batchCompareAndSwap(kvs[i].keys.toArray(new OKey[] {}),
-							kvs[i].values.toArray(new OValue[] {}),kvs[i].newvalues.toArray(new OValue[] {})).get();
+					OValue[] ret = odbs[i]
+							.batchCompareAndSwap(kvs[i].keys.toArray(new OKey[] {}),
+									kvs[i].values.toArray(new OValue[] {}), kvs[i].newvalues.toArray(new OValue[] {}))
+							.get();
 					list.addAll(Arrays.asList(ret));
 				} catch (Exception e) {
 					throw new ODBException(e);
@@ -188,12 +188,10 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	@Override
 	public Future<OValue[]> batchDelete(OKey[] keys) throws ODBException {
 		SlicePair[] kvs = seperate(keys);
-		List<OValue> list = new ArrayList<OValue>();
 		for (int i = 0; i < sliceCount; i++) {
 			if (kvs[i] != null) {
 				try {
 					OValue[] ret = odbs[i].batchDelete(kvs[i].keys.toArray(new OKey[] {})).get();
-					list.addAll(Arrays.asList(ret));
 				} catch (Exception e) {
 					throw new ODBException(e);
 				}
@@ -204,23 +202,45 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		return ConcurrentUtils.constantFuture(null);
 	}
 
+	@AllArgsConstructor
+	class BatchPutsRunner implements Runnable {
+		OBDBImpl odb;
+
+		OKey[] keys;
+		OValue[] values;
+
+		@Override
+		public void run() {
+			odb.batchPuts(keys, values);
+		}
+	}
+
 	@Override
 	public Future<OValue[]> batchPuts(OKey[] keys, OValue[] values) throws ODBException {
 		SlicePair[] kvs = seperate(keys, values);
-		List<OValue> list = new ArrayList<OValue>();
+		CountDownLatch cdl = new CountDownLatch(sliceCount);
 		for (int i = 0; i < sliceCount; i++) {
 			if (kvs[i] != null) {
-				try {
-					OValue[] ret = odbs[i].batchPuts(kvs[i].keys.toArray(new OKey[] {}),
-							kvs[i].values.toArray(new OValue[] {})).get();
-					list.addAll(Arrays.asList(ret));
-				} catch (Exception e) {
-					throw new ODBException(e);
+				if (kvs[i].keys.size() > 1) {
+					try {
+						exec.execute(new BatchPutsRunner(odbs[i], kvs[i].keys.toArray(new OKey[] {}),
+								kvs[i].values.toArray(new OValue[] {})));
+					} catch (Exception e) {
+						throw new ODBException(e);
+					}
+				} else {
+					odbs[i].put(kvs[i].keys.get(0), kvs[i].values.get(0));
 				}
-
 			}
+			cdl.countDown();
+		}
+		try {
+			cdl.await(60, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new ODBException("Batch put TimeoutException");
 		}
 		return ConcurrentUtils.constantFuture(null);
+
 	}
 
 	@Override

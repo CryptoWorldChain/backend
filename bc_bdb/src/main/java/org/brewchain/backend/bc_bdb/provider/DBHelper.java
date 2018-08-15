@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import org.brewchain.bcapi.backend.ODBSupport;
@@ -29,7 +30,8 @@ import onight.tfw.outils.conf.PropHelper;
 public class DBHelper {
 	PropHelper params;
 
-	private Environment initDatabaseEnvironment(String folder, String domainName) {
+	Executor exec;
+	private Environment initDatabaseEnvironment(String root, String domainName, int cc) {
 		String network = "";
 		try {
 			File networkFile = new File(".chainnet");
@@ -53,19 +55,38 @@ public class DBHelper {
 		} catch (Exception e) {
 			log.error("error on read chain_net::" + e.getMessage());
 		}
+		String domainPaths[]=domainName.split("\\.");
+		String dbfolder;
+		if (domainPaths.length == 3) {
+			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainPaths[0]+"."+domainPaths[1]+"." + cc;
+		} else {
+			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainName;
+		}
 
-		folder = "db" + File.separator + network + File.separator + folder + File.separator + domainName;
-		File dbHomeFile = new File(folder);
-
+		File dbHomeFile = new File(dbfolder);
 		if (!dbHomeFile.exists()) {
 			if (!dbHomeFile.mkdirs()) {
 				throw new PersistentMapException("make db folder error");
 			} else {
 				String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
-				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
-						+ File.separator + domainName + File.separator + "00000000.jdb";
-
+				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainName + File.separator + "00000000.jdb";
 				File genesisDbFile = new File(genesisDbFileStr);
+				if(!genesisDbFile.exists()&&domainPaths.length == 3){
+					genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+ File.separator + "00000000.jdb";
+					genesisDbFile = new File(genesisDbFileStr);
+					if(!genesisDbFile.exists()){
+						genesisDbFileStr =genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+ File.separator + "00000000.jdb";
+						genesisDbFile = new File(genesisDbFileStr);
+					}
+					if(!genesisDbFile.exists()){
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+"."+cc+ File.separator + "00000000.jdb";
+						genesisDbFile = new File(genesisDbFileStr);
+					}
+					if(!genesisDbFile.exists()){
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+"."+domainPaths[2]+ File.separator + "00000000.jdb";
+						genesisDbFile = new File(genesisDbFileStr);
+					}
+				}
 				if (genesisDbFile.exists() && genesisDbFile.isFile()) {
 					try {
 						log.info("init genesis db from:" + genesisDbFile.getAbsolutePath() + ",size="
@@ -73,7 +94,7 @@ public class DBHelper {
 
 						try (FileInputStream input = new FileInputStream(genesisDbFile);
 								FileOutputStream output = new FileOutputStream(
-										folder + File.separator + "00000000.jdb");) {
+										dbfolder + File.separator + "00000000.jdb");) {
 							byte[] bb = new byte[10240];
 							int size = 0;
 							while ((size = input.read(bb)) > 0) {
@@ -132,8 +153,8 @@ public class DBHelper {
 		}
 	}
 
-	public OBDBImpl createODBImpl(String dir, String domainName) {
-		Environment env = initDatabaseEnvironment(dir, domainName);
+	public OBDBImpl createODBImpl(String dir, String domainName, int cc) {
+		Environment env = initDatabaseEnvironment(dir, domainName, cc);
 		Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
 		if (dbs.length == 1) {
 			return new OBDBImpl(domainName, dbs[0]);
@@ -162,10 +183,10 @@ public class DBHelper {
 				}
 				OBDBImpl dbis[] = new OBDBImpl[cc];
 				for (int i = 0; i < cc; i++) {
-					dbis[i] = createODBImpl(dir, domainName);
+					dbis[i] = createODBImpl(dir, domainName, i);
 				}
 				if (cc > 1) {
-					dbi = new SlicerOBDBImpl(domainName, dbis);
+					dbi = new SlicerOBDBImpl(domainName, dbis,exec);
 				} else {
 					dbi = dbis[0];
 				}

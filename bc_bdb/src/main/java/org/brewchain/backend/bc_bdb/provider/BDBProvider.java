@@ -42,6 +42,7 @@ import onight.tfw.ntrans.api.ActorService;
 import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.StoreServiceProvider;
 import onight.tfw.outils.conf.PropHelper;
+import scala.concurrent.forkjoin.ForkJoinPool;
 
 @Component(publicFactory = false)
 @Instantiate(name = "bdb_provider")
@@ -74,7 +75,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	PropHelper params;
 
 	OBDBImpl default_dbImpl;
-	
+
 	DBHelper dbHelper;
 
 	@Validate
@@ -92,13 +93,14 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		public void run() {
 			try {
 				params = new PropHelper(bundleContext);
-				dbHelper = new DBHelper(params);
+				dbHelper = new DBHelper(params, new ForkJoinPool(params.get("org.brewchain.bdb.batchrunner.count",
+						Runtime.getRuntime().availableProcessors() * 2)));
 				String dir = params.get("org.bc.obdb.dir",
 						"odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
 
 				synchronized (dbsByDomains) {
 					for (String domainName : dbsByDomains.keySet()) {
-						dbHelper.createDBI(dbsByDomains,dir,domainName);
+						dbHelper.createDBI(dbsByDomains, dir, domainName);
 					}
 				}
 			} catch (Exception e) {
@@ -109,7 +111,6 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 	// private Database dbs;
 
-	
 	@Invalidate
 	public void shutdown() {
 		Iterator<String> it = this.dbsByDomains.keySet().iterator();
@@ -134,7 +135,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	}
 
 	private List<String> tempDomainName = new ArrayList<String>();
-	
+
 	@Override
 	public DomainDaoSupport getDaoByBeanName(DomainDaoSupport dds) {
 		ODBSupport dbi = dbsByDomains.get(dds.getDomainName());
@@ -145,7 +146,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		return dbi;
 	}
 
-	private void copyFolder(File src, File dest) throws IOException {
+	public void copyFolder(File src, File dest) throws IOException {
 		if (src.isDirectory()) {
 			if (!dest.exists()) {
 				dest.mkdir();
