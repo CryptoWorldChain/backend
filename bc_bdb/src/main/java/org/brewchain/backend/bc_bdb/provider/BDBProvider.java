@@ -198,6 +198,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		envConfig.setLockTimeout(params.get("org.brewchain.backend.bdb.lock.timeoutms", 30*1000), TimeUnit.MILLISECONDS);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
+		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 983040));
 		return new Environment(dbHomeFile, envConfig);
 	}
 
