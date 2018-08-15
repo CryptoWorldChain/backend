@@ -6,6 +6,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,7 +42,7 @@ import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.StoreServiceProvider;
 import onight.tfw.outils.conf.PropHelper;
 
-@Component(publicFactory=false)
+@Component(publicFactory = false)
 @Instantiate(name = "bdb_provider")
 @Provides(specifications = { StoreServiceProvider.class, ActorService.class }, strategy = "SINGLETON")
 @Slf4j
@@ -56,11 +58,11 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Getter
 	String rootPath = "fbs";
 	private HashMap<String, OBDBImpl> dbsByDomains = new HashMap<>();
-	private Environment dbEnv = null;
+	// private Environment dbEnv = null;
 
 	public BDBProvider(BundleContext bundleContext) {
 		this.bundleContext = bundleContext;
-		log.debug("new BDBProvider:"+this.hashCode()+":"+this);
+		log.debug("new BDBProvider:" + this.hashCode() + ":" + this);
 	}
 
 	@Override
@@ -75,7 +77,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Validate
 	public void startup() {
 		try {
-			log.debug("InitDBStart:::"+this);
+			log.debug("InitDBStart:::" + this);
 			new Thread(new DBStartThread()).start();
 
 			// params = new PropHelper(bundleContext);
@@ -100,17 +102,21 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				String dir = params.get("org.bc.obdb.dir",
 						"odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
 
-				dbEnv = initDatabaseEnvironment(dir);
-				dbs = openDatabase("bc_bdb", true, false)[0];
+				// dbEnv = initDatabaseEnvironment(dir);
+				// dbs = openDatabase("bc_bdb", true, false)[0];
 				synchronized (dbsByDomains) {
-					default_dbImpl = new OBDBImpl("_", dbs);
-					dbsByDomains.put("_", default_dbImpl);
-					VersionChecker.check(default_dbImpl);
+					// default_dbImpl = new OBDBImpl("_", dbs);
+					// dbsByDomains.put("_", default_dbImpl);
+					// VersionChecker.check(default_dbImpl);
 
 					for (String domainName : dbsByDomains.keySet()) {
 						OBDBImpl dbi = dbsByDomains.get(domainName);
+						if (dbi == null) {
+							dbi = new OBDBImpl(domainName, null);
+						}
 						if (dbi.getDbs() == null) {
-							Database[] dbs = openDatabase("bc_bdb_" + domainName, true, false);
+							Environment env = initDatabaseEnvironment(dir, domainName);
+							Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
 							if (dbs.length == 1) {
 								dbi.setDbs(dbs[0]);
 							} else {
@@ -127,9 +133,9 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		}
 	}
 
-	private Database dbs;
+	// private Database dbs;
 
-	private Environment initDatabaseEnvironment(String folder) {
+	private Environment initDatabaseEnvironment(String folder, String domainName) {
 		String network = "";
 		try {
 			File networkFile = new File(".chainnet");
@@ -154,39 +160,39 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 			log.error("error on read chain_net::" + e.getMessage());
 		}
 
-		folder = "db" + File.separator + network + File.separator + folder;
+		folder = "db" + File.separator + network + File.separator + folder + File.separator + domainName;
 		File dbHomeFile = new File(folder);
 		File dbFile = new File(folder + File.separator + "00000000.jdb");
-		String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
-		String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "00000000.jdb";
-		File genesisDbFile = new File(genesisDbFileStr);
 
-		if (!genesisDbFile.exists()) {
-			genesisDbFile.getParentFile().mkdirs();
-		}
-		if (!dbHomeFile.exists()) {
-			dbHomeFile.mkdirs();
-		}
-		if (!dbFile.exists() && genesisDbFile.exists()) {
+		if (!dbFile.exists()) {
 			if (!dbHomeFile.exists() && !dbHomeFile.mkdirs()) {
 				throw new PersistentMapException("make db folder error");
 			} else {
-				// copy default db
-				try {
-					log.info("init genesis db from:" + genesisDbFile.getAbsolutePath() + ",size="
-							+ genesisDbFile.length());
-					try (FileInputStream input = new FileInputStream(genesisDbFile);
-							FileOutputStream output = new FileOutputStream(folder + File.separator + "00000000.jdb");) {
-						byte[] bb = new byte[10240];
-						int size = 0;
-						while ((size = input.read(bb)) > 0) {
-							output.write(bb, 0, size);
+				String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
+				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+						+ File.separator + domainName + File.separator + "00000000.jdb";
+
+				File genesisDbFile = new File(genesisDbFileStr);
+				if (genesisDbFile.exists() && genesisDbFile.isFile()) {
+					try {
+						log.info("init genesis db from:" + genesisDbFile.getAbsolutePath() + ",size="
+								+ genesisDbFile.length());
+
+						try (FileInputStream input = new FileInputStream(genesisDbFile);
+								FileOutputStream output = new FileOutputStream(
+										folder + File.separator + "00000000.jdb");) {
+							byte[] bb = new byte[10240];
+							int size = 0;
+							while ((size = input.read(bb)) > 0) {
+								output.write(bb, 0, size);
+							}
+						} catch (IOException e) {
+							e.printStackTrace();
 						}
-					} catch (IOException e) {
-						e.printStackTrace();
+
+					} catch (Exception e) {
+						log.error("copy db ex:", e);
 					}
-				} catch (Exception e) {
-					log.error("copy db ex:", e);
 				}
 			}
 		}
@@ -194,15 +200,17 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		// TODO db性能调优
 		envConfig.setDurability(Durability.COMMIT_SYNC);
-		envConfig.setTxnTimeout(params.get("org.brewchain.backend.bdb.txn.timeoutms", 30*1000), TimeUnit.MILLISECONDS);
-		envConfig.setLockTimeout(params.get("org.brewchain.backend.bdb.lock.timeoutms", 30*1000), TimeUnit.MILLISECONDS);
+		envConfig.setTxnTimeout(params.get("org.brewchain.backend.bdb.txn.timeoutms", 30 * 1000),
+				TimeUnit.MILLISECONDS);
+		envConfig.setLockTimeout(params.get("org.brewchain.backend.bdb.lock.timeoutms", 30 * 1000),
+				TimeUnit.MILLISECONDS);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
 		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 983040));
 		return new Environment(dbHomeFile, envConfig);
 	}
 
-	private Database[] openDatabase(String dbNameP, boolean allowCreate, boolean allowDuplicates) {
+	private Database[] openDatabase(Environment env, String dbNameP, boolean allowCreate, boolean allowDuplicates) {
 		DatabaseConfig objDbConf = new DatabaseConfig();
 		objDbConf.setAllowCreate(allowCreate);
 		objDbConf.setSortedDuplicates(allowDuplicates);
@@ -211,7 +219,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 		String dbsname[] = dbNameP.split("\\.");
 
-		Database db = this.dbEnv.openDatabase(null, dbsname[0], objDbConf);
+		Database db = env.openDatabase(null, dbsname[0], objDbConf);
 		if (dbsname.length == 2) {
 			SecondaryConfig sd = new SecondaryConfig();
 			sd.setAllowCreate(allowCreate);
@@ -223,7 +231,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
 			sd.setKeyCreator(keyCreator);
 
-			SecondaryDatabase sdb = this.dbEnv.openSecondaryDatabase(null, dbNameP, db, sd);
+			SecondaryDatabase sdb = env.openSecondaryDatabase(null, dbNameP, db, sd);
 			return new Database[] { db, sdb };
 		} else {
 			return new Database[] { db };
@@ -240,10 +248,9 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				log.warn("close db error", e);
 			}
 		}
-		if (this.dbEnv != null) {
-			this.dbEnv.close();
-		}
-
+		// if (this.dbEnv != null) {
+		// this.dbEnv.close();
+		// }
 	}
 
 	@Override
@@ -256,20 +263,24 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Override
 	public DomainDaoSupport getDaoByBeanName(DomainDaoSupport dds) {
 		OBDBImpl dbi = dbsByDomains.get(dds.getDomainName());
+		String dir = params.get("org.bc.obdb.dir", "odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
+
 		if (dbi == null) {
 			synchronized (dbsByDomains) {
 				dbi = dbsByDomains.get(dds.getDomainName());
 				if (dbi == null) {
-					if (this.dbEnv == null) {
-						dbi = new OBDBImpl(dds.getDomainName(), null);
+					// if (this.dbEnv == null) {
+					// dbi = new OBDBImpl(dds.getDomainName(), null);
+					// } else {
+
+					Environment env = initDatabaseEnvironment(dir, dds.getDomainName());
+					Database[] dbs = openDatabase(env, "bc_bdb_" + dds.getDomainName(), true, false);
+					if (dbs.length == 1) {
+						dbi = new OBDBImpl(dds.getDomainName(), dbs[0]);
 					} else {
-						Database[] dbs = openDatabase("bc_bdb_" + dds.getDomainName(), true, false);
-						if (dbs.length == 1) {
-							dbi = new OBDBImpl(dds.getDomainName(), dbs[0]);
-						} else {
-							dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
-						}
+						dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
 					}
+					// }
 					dbsByDomains.put(dds.getDomainName(), dbi);
 					log.debug("inject dao::" + dds.getDomainName());
 				}
@@ -278,4 +289,31 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		return dbi;
 	}
 
+	private void copyFolder(File src, File dest) throws IOException {
+		if (src.isDirectory()) {
+			if (!dest.exists()) {
+				dest.mkdir();
+			}
+			String files[] = src.list();
+			for (String file : files) {
+				File srcFile = new File(src, file);
+				File destFile = new File(dest, file);
+				// 递归复制
+				copyFolder(srcFile, destFile);
+			}
+		} else {
+			InputStream in = new FileInputStream(src);
+			OutputStream out = new FileOutputStream(dest);
+
+			byte[] buffer = new byte[1024];
+
+			int length;
+
+			while ((length = in.read(buffer)) > 0) {
+				out.write(buffer, 0, length);
+			}
+			in.close();
+			out.close();
+		}
+	}
 }
