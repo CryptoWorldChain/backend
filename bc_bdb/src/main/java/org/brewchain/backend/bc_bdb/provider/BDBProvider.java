@@ -79,16 +79,6 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		try {
 			log.debug("InitDBStart:::" + this);
 			new Thread(new DBStartThread()).start();
-
-			// params = new PropHelper(bundleContext);
-			// String dir = params.get("org.bc.obdb.dir", "odb." +
-			// Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
-			//
-			// this.dbEnv = initDatabaseEnvironment(dir);
-			// this.dbs = openDatabase("bc_bdb", true, false)[0];
-			// default_dbImpl = new OBDBImpl("_", dbs);
-			// dbsByDomains.put("_", default_dbImpl);
-			// VersionChecker.check(default_dbImpl);
 		} catch (Throwable t) {
 			log.error("init bc bdb failed", t);
 		}
@@ -102,8 +92,6 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 				String dir = params.get("org.bc.obdb.dir",
 						"odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
 
-				// dbEnv = initDatabaseEnvironment(dir);
-				// dbs = openDatabase("bc_bdb", true, false)[0];
 				synchronized (dbsByDomains) {
 					// default_dbImpl = new OBDBImpl("_", dbs);
 					// dbsByDomains.put("_", default_dbImpl);
@@ -162,10 +150,9 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 		folder = "db" + File.separator + network + File.separator + folder + File.separator + domainName;
 		File dbHomeFile = new File(folder);
-		File dbFile = new File(folder + File.separator + "00000000.jdb");
 
-		if (!dbFile.exists()) {
-			if (!dbHomeFile.exists() && !dbHomeFile.mkdirs()) {
+		if (!dbHomeFile.exists()) {
+			if (!dbHomeFile.mkdirs()) {
 				throw new PersistentMapException("make db folder error");
 			} else {
 				String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
@@ -207,6 +194,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
 		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 983040));
+		// envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
 		return new Environment(dbHomeFile, envConfig);
 	}
 
