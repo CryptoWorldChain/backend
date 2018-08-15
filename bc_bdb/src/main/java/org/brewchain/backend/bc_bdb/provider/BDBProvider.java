@@ -186,7 +186,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		// TODO db性能调优
-		envConfig.setDurability(Durability.COMMIT_SYNC);
+		envConfig.setDurability(Durability.COMMIT_NO_SYNC);
 		envConfig.setTxnTimeout(params.get("org.brewchain.backend.bdb.txn.timeoutms", 30 * 1000),
 				TimeUnit.MILLISECONDS);
 		envConfig.setLockTimeout(params.get("org.brewchain.backend.bdb.lock.timeoutms", 30 * 1000),

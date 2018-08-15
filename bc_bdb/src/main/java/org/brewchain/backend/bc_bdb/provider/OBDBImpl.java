@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.concurrent.ConcurrentUtils;
 import org.brewchain.bcapi.backend.ODBException;
@@ -28,7 +29,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.ServiceSpec;
-import onight.tfw.oparam.api.OParam;
 
 @Slf4j
 @Data
@@ -39,6 +39,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	private boolean autoSync = true;
 	private TransactionConfig txnConfig;
+	AtomicInteger relayWriteCounter = new AtomicInteger(0);
 
 	public OBDBImpl(String domain, Database dbs) {
 		this.domainName = domain;
@@ -80,12 +81,18 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			// 如果是transactionl，不允许sync
 			if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
 				dbs.sync();
-				
+			}
+		}
+		synchronized (relayWriteCounter) {
+			if (relayWriteCounter.incrementAndGet() >= 10) {
+				dbs.sync();
+				relayWriteCounter.set(0);
 			}
 		}
 	}
 
 	public void close() {
+		dbs.sync();
 		if (dbs != null) {
 			dbs.close();
 		}
@@ -133,7 +140,8 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
-			txn.commit();
+			txn.commitNoSync();
+			trySync();
 		} catch (Exception e) {
 			log.error("fail to batch compare and delete::ex=" + e);
 
@@ -144,7 +152,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		}
 		return ConcurrentUtils.constantFuture((OValue[]) list.toArray());
 	}
-	
+
 	@Override
 	public Future<OValue[]> batchCompareAndSwap(OKey[] keys, OValue[] compareValues, OValue[] newValues)
 			throws ODBException {
@@ -169,7 +177,8 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
-			txn.commit();
+			txn.commitNoSync();
+			trySync();
 		} catch (Exception e) {
 			log.error("fail to batch swap::ex=" + e);
 
@@ -190,7 +199,8 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			for (OKey key : keys) {
 				this.dbs.delete(txn, new DatabaseEntry(key.toByteArray()));
 			}
-			txn.commit();
+			txn.commitNoSync();
+			trySync();
 		} catch (Exception ex) {
 			if (txn != null) {
 				txn.abort();
@@ -212,7 +222,8 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 				OperationStatus os = this.dbs.put(txn, new DatabaseEntry(keys[i].toByteArray()),
 						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
 			}
-			txn.commit();
+			txn.commitNoSync();
+			trySync();
 		} catch (Exception ex) {
 			if (txn != null) {
 				txn.abort();
