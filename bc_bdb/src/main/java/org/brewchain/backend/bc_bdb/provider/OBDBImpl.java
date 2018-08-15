@@ -76,23 +76,18 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		return "etcd";
 	}
 
-	public void trySync() {
-		if (autoSync && dbs != null) {
-			// 如果是transactionl，不允许sync
-			if (!this.dbs.getEnvironment().getConfig().getTransactional()) {
-				dbs.sync();
-			}
-		}
-		synchronized (relayWriteCounter) {
+	public void commitTxn(Transaction txn) {
+//		synchronized (relayWriteCounter) {
 			if (relayWriteCounter.incrementAndGet() >= 10) {
-				dbs.sync();
+				txn.commit();
 				relayWriteCounter.set(0);
+			}else{
+				txn.commitNoSync();
 			}
-		}
+//		}
 	}
 
 	public void close() {
-		dbs.sync();
 		if (dbs != null) {
 			dbs.close();
 		}
@@ -140,8 +135,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
-			txn.commitNoSync();
-			trySync();
+			commitTxn(txn);
 		} catch (Exception e) {
 			log.error("fail to batch compare and delete::ex=" + e);
 
@@ -177,8 +171,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 					}
 				}
 			}
-			txn.commitNoSync();
-			trySync();
+			commitTxn(txn);
 		} catch (Exception e) {
 			log.error("fail to batch swap::ex=" + e);
 
@@ -199,8 +192,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 			for (OKey key : keys) {
 				this.dbs.delete(txn, new DatabaseEntry(key.toByteArray()));
 			}
-			txn.commitNoSync();
-			trySync();
+			commitTxn(txn);
 		} catch (Exception ex) {
 			if (txn != null) {
 				txn.abort();
@@ -222,8 +214,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 				OperationStatus os = this.dbs.put(txn, new DatabaseEntry(keys[i].toByteArray()),
 						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
 			}
-			txn.commitNoSync();
-			trySync();
+			commitTxn(txn);
 		} catch (Exception ex) {
 			if (txn != null) {
 				txn.abort();
@@ -247,7 +238,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 			} else {
 				dbs.delete(null, new DatabaseEntry(key.toByteArray()));
-				trySync();
 			}
 
 			// return new value or old value?
@@ -267,7 +257,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 			} else {
 				dbs.put(null, new DatabaseEntry(key.toByteArray()), new DatabaseEntry(ODBHelper.v2Bytes(newValue)));
-				trySync();
 			}
 
 			return ConcurrentUtils.constantFuture(newValue);
@@ -277,7 +266,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 	@Override
 	public Future<OValue> delete(OKey key) throws ODBException {
 		dbs.delete(null, new DatabaseEntry(key.toByteArray()));
-		trySync();
 		return ConcurrentUtils.constantFuture(null);
 	}
 
@@ -314,7 +302,6 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		DatabaseEntry keyValue = new DatabaseEntry(key.toByteArray());
 		DatabaseEntry dataValue = new DatabaseEntry(ODBHelper.v2Bytes(v));
 		dbs.put(null, keyValue, dataValue);
-		trySync();
 		return ConcurrentUtils.constantFuture(v);
 	}
 

@@ -202,7 +202,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		DatabaseConfig objDbConf = new DatabaseConfig();
 		objDbConf.setAllowCreate(allowCreate);
 		objDbConf.setSortedDuplicates(allowDuplicates);
-		objDbConf.setDeferredWrite(true);
+//		objDbConf.setDeferredWrite(true);
 		objDbConf.setTransactional(true);
 
 		String dbsname[] = dbNameP.split("\\.");
