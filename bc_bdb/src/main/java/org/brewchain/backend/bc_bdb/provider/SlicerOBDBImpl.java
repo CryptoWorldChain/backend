@@ -38,6 +38,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		this.odbs = odbs;
 		this.domainName = domain;
 		this.sliceCount = odbs.length;
+		this.exec = exec;
 	}
 
 	@Override
