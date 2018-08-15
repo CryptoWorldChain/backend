@@ -194,7 +194,8 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
 		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 983040));
-		// envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
+		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
+		envConfig.setConfigParam(EnvironmentConfig.CLEANER_LOOK_AHEAD_CACHE_SIZE, "819200");
 		return new Environment(dbHomeFile, envConfig);
 	}
 
