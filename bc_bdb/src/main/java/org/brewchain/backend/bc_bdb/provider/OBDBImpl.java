@@ -144,7 +144,7 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		}
 		return ConcurrentUtils.constantFuture((OValue[]) list.toArray());
 	}
-
+	
 	@Override
 	public Future<OValue[]> batchCompareAndSwap(OKey[] keys, OValue[] compareValues, OValue[] newValues)
 			throws ODBException {

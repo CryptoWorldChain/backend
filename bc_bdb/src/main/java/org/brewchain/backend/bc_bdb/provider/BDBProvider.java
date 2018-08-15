@@ -206,7 +206,6 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		objDbConf.setTransactional(true);
 
 		String dbsname[] = dbNameP.split("\\.");
-
 		Database db = env.openDatabase(null, dbsname[0], objDbConf);
 		if (dbsname.length == 2) {
 			SecondaryConfig sd = new SecondaryConfig();
