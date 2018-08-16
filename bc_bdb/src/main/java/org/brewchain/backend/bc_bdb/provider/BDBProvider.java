@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.felix.ipojo.annotations.Component;
@@ -93,7 +94,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		public void run() {
 			try {
 				params = new PropHelper(bundleContext);
-				dbHelper = new DBHelper(params, new ForkJoinPool(params.get("org.brewchain.bdb.batchrunner.count",
+				dbHelper = new DBHelper(params, new ScheduledThreadPoolExecutor(params.get("org.brewchain.bdb.batchrunner.count",
 						Runtime.getRuntime().availableProcessors() * 2)));
 				String dir = params.get("org.bc.obdb.dir",
 						"odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));

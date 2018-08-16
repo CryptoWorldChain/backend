@@ -8,11 +8,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
 import org.brewchain.bcapi.backend.ODBSupport;
 
+import com.google.common.util.concurrent.AbstractScheduledService.Scheduler;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
 import com.sleepycat.je.Durability;
@@ -31,7 +33,7 @@ import onight.tfw.outils.conf.PropHelper;
 public class DBHelper {
 	PropHelper params;
 
-	Executor exec;
+	ScheduledExecutorService exec;
 
 	private Environment initDatabaseEnvironment(String root, String domainName, int cc) {
 		String network = "";
@@ -175,18 +177,25 @@ log.info(">> dbfolder" + dbfolder);
 		Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
 		if (dbs.length == 1) {
 			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
-				return new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
-						params.get("org.brewchain.backend.deferdb.delayms",200),
+				long delay=params.get("org.brewchain.backend.deferdb.delayms",200);
+				DeferOBDBImpl ret= new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
+						delay,
 						domainName, dbs[0]);
+				exec.scheduleWithFixedDelay(ret, delay, delay, TimeUnit.MILLISECONDS);
+				return ret;
 			}else
 			{
 				return new OBDBImpl(domainName, dbs[0]);
 			}
 		} else {
 			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
-				return new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
-						params.get("org.brewchain.backend.deferdb.delayms",200),
+				long delay=params.get("org.brewchain.backend.deferdb.delayms",200);
+
+				DeferOBDBImpl ret=new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
+						delay,
 						domainName, dbs[0],dbs[1]);
+				exec.scheduleWithFixedDelay(ret, delay, delay, TimeUnit.MILLISECONDS);
+				return ret;
 			}else
 			{
 				return new OBDBImpl(domainName, dbs[0], dbs[1]);
