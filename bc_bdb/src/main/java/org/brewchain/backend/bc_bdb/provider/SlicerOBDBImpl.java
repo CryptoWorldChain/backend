@@ -310,7 +310,19 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	@Override
 
 	public Future<List<OPair>> listBySecondKey(String secondaryName) throws ODBException {
-		throw new RuntimeException("Not supported");
+		List<OPair> ret = new ArrayList<>();
+		for (int i = 0; i < sliceCount; i++) {
+			try {
+				Future<List<OPair>> subret = odbs[i].listBySecondKey(secondaryName);
+				if(subret!=null&&subret.get()!=null){
+					ret.addAll(subret.get());
+				}
+			} catch (Exception e) {
+				throw new ODBException(e);
+			}
+		}
+		return ConcurrentUtils.constantFuture(ret);
+		// throw new RuntimeException("Not supported");
 	}
 
 	@Override

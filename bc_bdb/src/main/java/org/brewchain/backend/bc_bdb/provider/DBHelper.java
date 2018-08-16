@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.brewchain.bcapi.backend.ODBSupport;
 
 import com.sleepycat.je.Database;
@@ -31,6 +32,7 @@ public class DBHelper {
 	PropHelper params;
 
 	Executor exec;
+
 	private Environment initDatabaseEnvironment(String root, String domainName, int cc) {
 		String network = "";
 		try {
@@ -55,10 +57,11 @@ public class DBHelper {
 		} catch (Exception e) {
 			log.error("error on read chain_net::" + e.getMessage());
 		}
-		String domainPaths[]=domainName.split("\\.");
+		String domainPaths[] = domainName.split("\\.");
 		String dbfolder;
 		if (domainPaths.length == 3) {
-			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainPaths[0]+"."+domainPaths[1]+"." + cc;
+			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainPaths[0] + "."
+					+ domainPaths[1] + "." + cc;
 		} else {
 			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainName;
 		}
@@ -69,21 +72,29 @@ public class DBHelper {
 				throw new PersistentMapException("make db folder error");
 			} else {
 				String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
-				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainName + File.separator + "00000000.jdb";
+				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+						+ File.separator + domainName + File.separator + "00000000.jdb";
 				File genesisDbFile = new File(genesisDbFileStr);
-				if(!genesisDbFile.exists()&&domainPaths.length == 3){
-					genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+ File.separator + "00000000.jdb";
+				if (!genesisDbFile.exists() && domainPaths.length == 3) {
+					genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator
+							+ domainPaths[0] + File.separator + "00000000.jdb";
 					genesisDbFile = new File(genesisDbFileStr);
-					if(!genesisDbFile.exists()){
-						genesisDbFileStr =genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+ File.separator + "00000000.jdb";
+					if (!genesisDbFile.exists()) {
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+								+ File.separator + domainPaths[0] + "." + domainPaths[1] + File.separator
+								+ "00000000.jdb";
 						genesisDbFile = new File(genesisDbFileStr);
 					}
-					if(!genesisDbFile.exists()){
-						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+"."+cc+ File.separator + "00000000.jdb";
+					if (!genesisDbFile.exists()) {
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+								+ File.separator + domainPaths[0] + "." + domainPaths[1] + "." + cc + File.separator
+								+ "00000000.jdb";
 						genesisDbFile = new File(genesisDbFileStr);
 					}
-					if(!genesisDbFile.exists()){
-						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+"."+domainPaths[2]+ File.separator + "00000000.jdb";
+					if (!genesisDbFile.exists()) {
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+								+ File.separator + domainPaths[0] + "." + domainPaths[1] + "." + domainPaths[2]
+								+ File.separator + "00000000.jdb";
 						genesisDbFile = new File(genesisDbFileStr);
 					}
 				}
@@ -135,7 +146,8 @@ public class DBHelper {
 
 		String dbsname[] = dbNameP.split("\\.");
 		Database db = env.openDatabase(null, dbsname[0], objDbConf);
-		if (dbsname.length == 2) {
+
+		if (dbsname.length == 2 || dbsname.length == 3 && StringUtils.isNotBlank(dbsname[1])) {
 			SecondaryConfig sd = new SecondaryConfig();
 			sd.setAllowCreate(allowCreate);
 			sd.setAllowPopulate(true);
@@ -145,7 +157,9 @@ public class DBHelper {
 			ODBTupleBinding tb = new ODBTupleBinding();
 			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
 			sd.setKeyCreator(keyCreator);
-
+			if (dbsname.length == 3 && StringUtils.isNotBlank(dbsname[1])) {
+				dbNameP = dbsname[0] + "." + dbsname[1];
+			}
 			SecondaryDatabase sdb = env.openSecondaryDatabase(null, dbNameP, db, sd);
 			return new Database[] { db, sdb };
 		} else {
@@ -186,7 +200,7 @@ public class DBHelper {
 					dbis[i] = createODBImpl(dir, domainName, i);
 				}
 				if (cc > 1) {
-					dbi = new SlicerOBDBImpl(domainName, dbis,exec);
+					dbi = new SlicerOBDBImpl(domainName, dbis, exec);
 				} else {
 					dbi = dbis[0];
 				}
