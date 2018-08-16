@@ -65,7 +65,7 @@ public class DBHelper {
 		} else {
 			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainName;
 		}
-
+log.info(">> dbfolder" + dbfolder);
 		File dbHomeFile = new File(dbfolder);
 		if (!dbHomeFile.exists()) {
 			if (!dbHomeFile.mkdirs()) {
@@ -124,7 +124,7 @@ public class DBHelper {
 
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		// TODO db性能调优
-		envConfig.setDurability(Durability.COMMIT_NO_SYNC);
+		envConfig.setDurability(Durability.COMMIT_SYNC);
 		envConfig.setTxnTimeout(params.get("org.brewchain.backend.bdb.txn.timeoutms", 30 * 1000),
 				TimeUnit.MILLISECONDS);
 		envConfig.setLockTimeout(params.get("org.brewchain.backend.bdb.lock.timeoutms", 30 * 1000),
@@ -134,6 +134,9 @@ public class DBHelper {
 		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 983040));
 		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
 		envConfig.setConfigParam(EnvironmentConfig.CLEANER_LOOK_AHEAD_CACHE_SIZE, "819200");
+		
+		log.info(">> dbHomeFile" + dbHomeFile);
+
 		return new Environment(dbHomeFile, envConfig);
 	}
 
