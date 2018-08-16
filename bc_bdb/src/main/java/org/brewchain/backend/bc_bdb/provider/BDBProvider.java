@@ -20,6 +20,7 @@ import org.apache.felix.ipojo.annotations.Invalidate;
 import org.apache.felix.ipojo.annotations.Provides;
 import org.apache.felix.ipojo.annotations.ServiceProperty;
 import org.apache.felix.ipojo.annotations.Validate;
+import org.brewchain.bcapi.backend.ODBSupport;
 import org.osgi.framework.BundleContext;
 
 import com.sleepycat.je.Database;
@@ -41,6 +42,7 @@ import onight.tfw.ntrans.api.ActorService;
 import onight.tfw.ojpa.api.DomainDaoSupport;
 import onight.tfw.ojpa.api.StoreServiceProvider;
 import onight.tfw.outils.conf.PropHelper;
+import scala.concurrent.forkjoin.ForkJoinPool;
 
 @Component(publicFactory = false)
 @Instantiate(name = "bdb_provider")
@@ -57,7 +59,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 	@Setter
 	@Getter
 	String rootPath = "fbs";
-	private HashMap<String, OBDBImpl> dbsByDomains = new HashMap<>();
+	private HashMap<String, ODBSupport> dbsByDomains = new HashMap<>();
 	// private Environment dbEnv = null;
 
 	public BDBProvider(BundleContext bundleContext) {
@@ -74,6 +76,8 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 	OBDBImpl default_dbImpl;
 
+	DBHelper dbHelper;
+
 	@Validate
 	public void startup() {
 		try {
@@ -89,30 +93,14 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		public void run() {
 			try {
 				params = new PropHelper(bundleContext);
+				dbHelper = new DBHelper(params, new ForkJoinPool(params.get("org.brewchain.bdb.batchrunner.count",
+						Runtime.getRuntime().availableProcessors() * 2)));
 				String dir = params.get("org.bc.obdb.dir",
 						"odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
 
 				synchronized (dbsByDomains) {
-					// default_dbImpl = new OBDBImpl("_", dbs);
-					// dbsByDomains.put("_", default_dbImpl);
-					// VersionChecker.check(default_dbImpl);
-
 					for (String domainName : dbsByDomains.keySet()) {
-						OBDBImpl dbi = dbsByDomains.get(domainName);
-						if (dbi == null) {
-							dbi = new OBDBImpl(domainName, null);
-						}
-						if (dbi.getDbs() == null) {
-							Environment env = initDatabaseEnvironment(dir, domainName);
-							Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
-							if (dbs.length == 1) {
-								dbi.setDbs(dbs[0]);
-							} else {
-								dbi.setDbs(dbs[0]);
-								dbi.setSdb((SecondaryDatabase) dbs[1]);
-							}
-							log.debug("delay inject dao::" + domainName);
-						}
+						dbHelper.createDBI(dbsByDomains, dir, domainName);
 					}
 				}
 			} catch (Exception e) {
@@ -208,7 +196,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 		String dbsname[] = dbNameP.split("\\.");
 		Database db = env.openDatabase(null, dbsname[0], objDbConf);
-		if (dbsname.length >= 2) {
+		if (dbsname.length == 2) {
 			SecondaryConfig sd = new SecondaryConfig();
 			sd.setAllowCreate(allowCreate);
 			sd.setAllowPopulate(true);
@@ -231,14 +219,17 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 		Iterator<String> it = this.dbsByDomains.keySet().iterator();
 		while (it.hasNext()) {
 			try {
-				this.dbsByDomains.get(it.next()).close();
+				ODBSupport odb = this.dbsByDomains.get(it.next());
+				if (odb != null && odb instanceof OBDBImpl) {
+					((OBDBImpl) odb).close();
+				} else if (odb != null && odb instanceof SlicerOBDBImpl) {
+					((SlicerOBDBImpl) odb).close();
+				}
+
 			} catch (DatabaseException e) {
 				log.warn("close db error", e);
 			}
 		}
-		// if (this.dbEnv != null) {
-		// this.dbEnv.close();
-		// }
 	}
 
 	@Override
@@ -250,58 +241,12 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 	@Override
 	public DomainDaoSupport getDaoByBeanName(DomainDaoSupport dds) {
-		OBDBImpl dbi = dbsByDomains.get(dds.getDomainName());
+		ODBSupport dbi = dbsByDomains.get(dds.getDomainName());
 		String dir = params.get("org.bc.obdb.dir", "odb." + Math.abs(NodeHelper.getCurrNodeListenOutPort() - 5100));
-
 		if (dbi == null) {
-			synchronized (dbsByDomains) {
-				dbi = dbsByDomains.get(dds.getDomainName());
-				if (dbi == null) {
-					// if (this.dbEnv == null) {
-					// dbi = new OBDBImpl(dds.getDomainName(), null);
-					// } else {
-
-					Environment env = initDatabaseEnvironment(dir, dds.getDomainName());
-					Database[] dbs = openDatabase(env, "bc_bdb_" + dds.getDomainName(), true, false);
-					if (dbs.length == 1) {
-						dbi = new OBDBImpl(dds.getDomainName(), dbs[0]);
-					} else {
-						dbi = new OBDBImpl(dds.getDomainName(), dbs[0], dbs[1]);
-					}
-					// }
-					dbsByDomains.put(dds.getDomainName(), dbi);
-					log.debug("inject dao::" + dds.getDomainName());
-				}
-			}
+			dbi = dbHelper.createDBI(dbsByDomains, dir, dds.getDomainName());
 		}
 		return dbi;
 	}
 
-	private void copyFolder(File src, File dest) throws IOException {
-		if (src.isDirectory()) {
-			if (!dest.exists()) {
-				dest.mkdir();
-			}
-			String files[] = src.list();
-			for (String file : files) {
-				File srcFile = new File(src, file);
-				File destFile = new File(dest, file);
-				// 递归复制
-				copyFolder(srcFile, destFile);
-			}
-		} else {
-			InputStream in = new FileInputStream(src);
-			OutputStream out = new FileOutputStream(dest);
-
-			byte[] buffer = new byte[1024];
-
-			int length;
-
-			while ((length = in.read(buffer)) > 0) {
-				out.write(buffer, 0, length);
-			}
-			in.close();
-			out.close();
-		}
-	}
 }
