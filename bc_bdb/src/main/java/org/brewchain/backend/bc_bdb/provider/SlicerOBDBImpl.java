@@ -72,6 +72,15 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		}
 	}
 
+	public int getSliceId(ByteString bs) {
+		return Math.abs(bs.byteAt(0)) % sliceCount;
+	}
+
+	public int getSliceId(String bs) {
+		byte[] bb = bs.getBytes();
+		return Math.abs(bb[0]) % sliceCount;
+	}
+
 	@Override
 	public ServiceSpec getServiceSpec() {
 		return new ServiceSpec("obdb");
@@ -83,11 +92,11 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	}
 
 	public OBDBImpl getDb(OKey key) {
-		return odbs[Math.abs(key.getData().byteAt(0)) % sliceCount];
+		return odbs[getSliceId(key.getData())];
 	}
 
 	public OBDBImpl getDb(String key) {
-		return odbs[Math.abs(key.getBytes()[0]) % sliceCount];
+		return odbs[getSliceId(key)];
 	}
 
 	class SlicePair {
@@ -99,7 +108,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	public SlicePair[] seperate(OKey[] keys, OValue[] values) {
 		SlicePair[] kvs = new SlicePair[sliceCount];
 		for (int i = 0; i < keys.length; i++) {
-			int id = Math.abs(keys[i].getData().byteAt(0)) % sliceCount;
+			int id = getSliceId(keys[i].getData());//(keys[i].getData().byteAt(0)) % sliceCount;
 			SlicePair sp = kvs[id];
 			if (sp == null) {
 				sp = new SlicePair();
@@ -115,7 +124,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	public SlicePair[] seperate(OKey[] keys) {
 		SlicePair[] kvs = new SlicePair[sliceCount];
 		for (int i = 0; i < keys.length; i++) {
-			int id = Math.abs(keys[i].getData().byteAt(0)) % sliceCount;
+			int id = getSliceId(keys[i].getData());
 			SlicePair sp = kvs[id];
 			if (sp == null) {
 				sp = new SlicePair();
@@ -129,7 +138,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	public SlicePair[] seperate(OKey[] keys, OValue[] values, OValue[] newvalues) {
 		SlicePair[] kvs = new SlicePair[sliceCount];
 		for (int i = 0; i < keys.length; i++) {
-			int id = Math.abs(keys[i].getData().byteAt(0)) % sliceCount;
+			int id = getSliceId(keys[i].getData());
 			SlicePair sp = kvs[id];
 			if (sp == null) {
 				sp = new SlicePair();
@@ -314,7 +323,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		for (int i = 0; i < sliceCount; i++) {
 			try {
 				Future<List<OPair>> subret = odbs[i].listBySecondKey(secondaryName);
-				if(subret!=null&&subret.get()!=null){
+				if (subret != null && subret.get() != null) {
 					ret.addAll(subret.get());
 				}
 			} catch (Exception e) {

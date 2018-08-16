@@ -174,9 +174,23 @@ log.info(">> dbfolder" + dbfolder);
 		Environment env = initDatabaseEnvironment(dir, domainName, cc);
 		Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
 		if (dbs.length == 1) {
-			return new OBDBImpl(domainName, dbs[0]);
+			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
+				return new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
+						params.get("org.brewchain.backend.deferdb.delayms",200),
+						domainName, dbs[0]);
+			}else
+			{
+				return new OBDBImpl(domainName, dbs[0]);
+			}
 		} else {
-			return new OBDBImpl(domainName, dbs[0], dbs[1]);
+			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
+				return new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
+						params.get("org.brewchain.backend.deferdb.delayms",200),
+						domainName, dbs[0],dbs[1]);
+			}else
+			{
+				return new OBDBImpl(domainName, dbs[0], dbs[1]);
+			}
 		}
 	}
 
