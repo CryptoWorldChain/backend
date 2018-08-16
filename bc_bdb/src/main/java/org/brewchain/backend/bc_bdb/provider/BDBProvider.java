@@ -208,7 +208,7 @@ public class BDBProvider implements StoreServiceProvider, ActorService {
 
 		String dbsname[] = dbNameP.split("\\.");
 		Database db = env.openDatabase(null, dbsname[0], objDbConf);
-		if (dbsname.length == 2) {
+		if (dbsname.length >= 2) {
 			SecondaryConfig sd = new SecondaryConfig();
 			sd.setAllowCreate(allowCreate);
 			sd.setAllowPopulate(true);

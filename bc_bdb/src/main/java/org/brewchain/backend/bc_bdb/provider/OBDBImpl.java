@@ -78,11 +78,11 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	public void commitTxn(Transaction txn) {
 //		synchronized (relayWriteCounter) {
-			if (relayWriteCounter.incrementAndGet() >= 10) {
+			if (relayWriteCounter.incrementAndGet() >= 1) {
 				txn.commit();
 				relayWriteCounter.set(0);
-			}else{
-				txn.commitNoSync();
+			} else{
+//				txn.commitNoSync();
 			}
 //		}
 	}
