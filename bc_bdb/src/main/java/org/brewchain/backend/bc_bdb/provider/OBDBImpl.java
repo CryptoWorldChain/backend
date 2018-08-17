@@ -399,4 +399,48 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		return null;
 	}
 
+	@Override
+	public Future<OValue> putIfNotExist(OKey key, OValue v) throws ODBException {
+		DatabaseEntry keyValue = new DatabaseEntry(key.toByteArray());
+		DatabaseEntry dataValue = new DatabaseEntry(ODBHelper.v2Bytes(v));
+		OperationStatus opstatus = dbs.putNoOverwrite(null, keyValue, dataValue);
+		if (opstatus == OperationStatus.KEYEXIST) {
+			return ConcurrentUtils.constantFuture(null);
+		} else {
+			return ConcurrentUtils.constantFuture(v);
+		}
+	}
+
+	/**
+	 * 如果存在返回null，如果不存在返回当前值
+	 */
+	@Override
+	public Future<OValue[]> putIfNotExist(OKey[] keys, OValue[] values) throws ODBException {
+		Transaction txn = null;
+		try {
+			// need TransactionConfig?
+			txn = this.dbs.getEnvironment().beginTransaction(null, this.txnConfig);
+			OValue[] ret = new OValue[keys.length];
+			for (int i = 0; i < keys.length; i++) {
+				OperationStatus os = this.dbs.putNoOverwrite(txn, new DatabaseEntry(keys[i].toByteArray()),
+						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
+				if (os == OperationStatus.KEYEXIST) {
+					ret[i] = null;
+				} else {
+					ret[i] = values[i];
+				}
+			}
+			commitTxn(txn);
+			return ConcurrentUtils.constantFuture(ret);
+		} catch (Exception ex) {
+			if (txn != null) {
+				txn.abort();
+				txn = null;
+			}
+			log.error("fail to batch put::ex=" + ex);
+
+		}
+		return ConcurrentUtils.constantFuture(null);
+	}
+
 }

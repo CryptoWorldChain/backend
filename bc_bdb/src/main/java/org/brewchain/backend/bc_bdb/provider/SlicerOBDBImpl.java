@@ -3,9 +3,10 @@ package org.brewchain.backend.bc_bdb.provider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.concurrent.ConcurrentUtils;
@@ -32,9 +33,9 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	int sliceCount = 1;
 
-	Executor exec;
+	ScheduledExecutorService exec;
 
-	public SlicerOBDBImpl(String domain, OBDBImpl odbs[], Executor exec) {
+	public SlicerOBDBImpl(String domain, OBDBImpl odbs[], ScheduledExecutorService exec) {
 		this.odbs = odbs;
 		this.domainName = domain;
 		this.sliceCount = odbs.length;
@@ -108,7 +109,8 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	public SlicePair[] seperate(OKey[] keys, OValue[] values) {
 		SlicePair[] kvs = new SlicePair[sliceCount];
 		for (int i = 0; i < keys.length; i++) {
-			int id = getSliceId(keys[i].getData());//(keys[i].getData().byteAt(0)) % sliceCount;
+			int id = getSliceId(keys[i].getData());// (keys[i].getData().byteAt(0))
+													// % sliceCount;
 			SlicePair sp = kvs[id];
 			if (sp == null) {
 				sp = new SlicePair();
@@ -219,9 +221,42 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		OKey[] keys;
 		OValue[] values;
 
+		CountDownLatch cdl;
+
 		@Override
 		public void run() {
-			odb.batchPuts(keys, values);
+			try {
+				odb.batchPuts(keys, values);
+			} finally {
+				cdl.countDown();
+			}
+		}
+	}
+
+	@AllArgsConstructor
+	class BatchPutsIfNotExistRunner implements Runnable {
+		OBDBImpl odb;
+
+		OKey[] keys;
+		OValue[] values;
+		List<OValue> resultSet;
+		CountDownLatch cdl;
+
+		@Override
+		public void run() {
+			try {
+				Future<OValue[]> f = odb.putIfNotExist(keys, values);
+				if (f != null && f.get() != null) {
+					for (OValue v : f.get()) {
+						if (v != null) {
+							resultSet.add(v);
+						}
+					}
+				}
+			} catch (Exception e) {
+			} finally {
+				cdl.countDown();
+			}
 		}
 	}
 
@@ -234,15 +269,16 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 				if (kvs[i].keys.size() > 1) {
 					try {
 						exec.execute(new BatchPutsRunner(odbs[i], kvs[i].keys.toArray(new OKey[] {}),
-								kvs[i].values.toArray(new OValue[] {})));
+								kvs[i].values.toArray(new OValue[] {}), cdl));
 					} catch (Exception e) {
 						throw new ODBException(e);
 					}
 				} else {
 					odbs[i].put(kvs[i].keys.get(0), kvs[i].values.get(0));
+					cdl.countDown();
 				}
 			}
-			cdl.countDown();
+
 		}
 		try {
 			cdl.await(60, TimeUnit.SECONDS);
@@ -342,6 +378,39 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 	@Override
 	public Future<List<OPair>> removeBySecondKey(String secondaryName, OKey[] keys) throws ODBException {
 		throw new RuntimeException("Not supported");
+	}
+
+	@Override
+	public Future<OValue> putIfNotExist(OKey key, OValue v) throws ODBException {
+		return getDb(key).putIfNotExist(key, v);
+	}
+
+	@Override
+	public Future<OValue[]> putIfNotExist(OKey[] keys, OValue[] values) throws ODBException {
+		SlicePair[] kvs = seperate(keys, values);
+		CountDownLatch cdl = new CountDownLatch(sliceCount);
+		List<OValue> ret = new ArrayList<>();
+		for (int i = 0; i < sliceCount; i++) {
+			if (kvs[i] != null) {
+				if (kvs[i].keys.size() > 1) {
+					try {
+						exec.execute(new BatchPutsIfNotExistRunner(odbs[i], kvs[i].keys.toArray(new OKey[] {}),
+								kvs[i].values.toArray(new OValue[] {}), ret, cdl));
+					} catch (Exception e) {
+						throw new ODBException(e);
+					}
+				} else {
+					odbs[i].put(kvs[i].keys.get(0), kvs[i].values.get(0));
+					cdl.countDown();
+				}
+			}
+		}
+		try {
+			cdl.await(60, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new ODBException("Batch put TimeoutException");
+		}
+		return ConcurrentUtils.constantFuture(null);
 	}
 
 }
