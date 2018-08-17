@@ -8,10 +8,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.brewchain.bcapi.backend.ODBSupport;
 
+import com.google.common.util.concurrent.AbstractScheduledService.Scheduler;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
 import com.sleepycat.je.Durability;
@@ -30,7 +33,8 @@ import onight.tfw.outils.conf.PropHelper;
 public class DBHelper {
 	PropHelper params;
 
-	Executor exec;
+	ScheduledExecutorService exec;
+
 	private Environment initDatabaseEnvironment(String root, String domainName, int cc) {
 		String network = "";
 		try {
@@ -55,10 +59,11 @@ public class DBHelper {
 		} catch (Exception e) {
 			log.error("error on read chain_net::" + e.getMessage());
 		}
-		String domainPaths[]=domainName.split("\\.");
+		String domainPaths[] = domainName.split("\\.");
 		String dbfolder;
 		if (domainPaths.length == 3) {
-			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainPaths[0]+"."+domainPaths[1]+"." + cc;
+			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainPaths[0] + "."
+					+ domainPaths[1] + "." + cc;
 		} else {
 			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainName;
 		}
@@ -69,45 +74,29 @@ log.info(">> dbfolder" + dbfolder);
 				throw new PersistentMapException("make db folder error");
 			} else {
 				String genesisDbDir = params.get("org.bc.obdb.dir", "genesis");
-				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainName + File.separator + "00000000.jdb";
-				
-//				File genesisDbFile = new File(genesisDbFileStr);
-//				if (genesisDbFile.exists() && genesisDbFile.isFile()) {
-//					try {
-//						log.info("init genesis db from:" + genesisDbFile.getAbsolutePath() + ",size="
-//								+ genesisDbFile.length());
-//
-//						try (FileInputStream input = new FileInputStream(genesisDbFile);
-//								FileOutputStream output = new FileOutputStream(
-//										dbfolder + File.separator + "00000000.jdb");) {
-//							byte[] bb = new byte[10240];
-//							int size = 0;
-//							while ((size = input.read(bb)) > 0) {
-//								output.write(bb, 0, size);
-//							}
-//						} catch (IOException e) {
-//							e.printStackTrace();
-//						}
-//
-//					} catch (Exception e) {
-//						log.error("copy db ex:", e);
-//					}
-//				}
-				
+				String genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+						+ File.separator + domainName + File.separator + "00000000.jdb";
 				File genesisDbFile = new File(genesisDbFileStr);
-				if(!genesisDbFile.exists()&&domainPaths.length == 3){
-					genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+ File.separator + "00000000.jdb";
+				if (!genesisDbFile.exists() && domainPaths.length == 3) {
+					genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator
+							+ domainPaths[0] + File.separator + "00000000.jdb";
 					genesisDbFile = new File(genesisDbFileStr);
-					if(!genesisDbFile.exists()){
-						genesisDbFileStr =genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+ File.separator + "00000000.jdb";
+					if (!genesisDbFile.exists()) {
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+								+ File.separator + domainPaths[0] + "." + domainPaths[1] + File.separator
+								+ "00000000.jdb";
 						genesisDbFile = new File(genesisDbFileStr);
 					}
-					if(!genesisDbFile.exists()){
-						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+"."+cc+ File.separator + "00000000.jdb";
+					if (!genesisDbFile.exists()) {
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+								+ File.separator + domainPaths[0] + "." + domainPaths[1] + "." + cc + File.separator
+								+ "00000000.jdb";
 						genesisDbFile = new File(genesisDbFileStr);
 					}
-					if(!genesisDbFile.exists()){
-						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db" + File.separator + domainPaths[0]+"."+domainPaths[1]+"."+domainPaths[2]+ File.separator + "00000000.jdb";
+					if (!genesisDbFile.exists()) {
+						genesisDbFileStr = genesisDbDir + File.separator + network + File.separator + "db"
+								+ File.separator + domainPaths[0] + "." + domainPaths[1] + "." + domainPaths[2]
+								+ File.separator + "00000000.jdb";
 						genesisDbFile = new File(genesisDbFileStr);
 					}
 				}
@@ -166,7 +155,8 @@ log.info(">> dbfolder" + dbfolder);
 
 		String dbsname[] = dbNameP.split("\\.");
 		Database db = env.openDatabase(null, dbsname[0], objDbConf);
-		if (dbsname.length == 2) {
+
+		if (dbsname.length == 2 || dbsname.length == 3 && StringUtils.isNotBlank(dbsname[1])) {
 			SecondaryConfig sd = new SecondaryConfig();
 			sd.setAllowCreate(allowCreate);
 			sd.setAllowPopulate(true);
@@ -176,7 +166,9 @@ log.info(">> dbfolder" + dbfolder);
 			ODBTupleBinding tb = new ODBTupleBinding();
 			SecondaryKeyCreator keyCreator = new ODBSecondKeyCreator(tb);
 			sd.setKeyCreator(keyCreator);
-
+			if (dbsname.length == 3 && StringUtils.isNotBlank(dbsname[1])) {
+				dbNameP = dbsname[0] + "." + dbsname[1];
+			}
 			SecondaryDatabase sdb = env.openSecondaryDatabase(null, dbNameP, db, sd);
 			return new Database[] { db, sdb };
 		} else {
@@ -188,9 +180,30 @@ log.info(">> dbfolder" + dbfolder);
 		Environment env = initDatabaseEnvironment(dir, domainName, cc);
 		Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
 		if (dbs.length == 1) {
-			return new OBDBImpl(domainName, dbs[0]);
+			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
+				long delay=params.get("org.brewchain.backend.deferdb.delayms",200);
+				DeferOBDBImpl ret= new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
+						delay,
+						domainName, dbs[0]);
+				exec.scheduleWithFixedDelay(ret, delay, delay, TimeUnit.MILLISECONDS);
+				return ret;
+			}else
+			{
+				return new OBDBImpl(domainName, dbs[0]);
+			}
 		} else {
-			return new OBDBImpl(domainName, dbs[0], dbs[1]);
+			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
+				long delay=params.get("org.brewchain.backend.deferdb.delayms",200);
+
+				DeferOBDBImpl ret=new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
+						delay,
+						domainName, dbs[0],dbs[1]);
+				exec.scheduleWithFixedDelay(ret, delay, delay, TimeUnit.MILLISECONDS);
+				return ret;
+			}else
+			{
+				return new OBDBImpl(domainName, dbs[0], dbs[1]);
+			}
 		}
 	}
 
@@ -217,7 +230,7 @@ log.info(">> dbfolder" + dbfolder);
 					dbis[i] = createODBImpl(dir, domainName, i);
 				}
 				if (cc > 1) {
-					dbi = new SlicerOBDBImpl(domainName, dbis,exec);
+					dbi = new SlicerOBDBImpl(domainName, dbis, exec);
 				} else {
 					dbi = dbis[0];
 				}
