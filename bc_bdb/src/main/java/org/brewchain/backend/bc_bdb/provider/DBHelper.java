@@ -144,10 +144,14 @@ log.info(">> dbfolder" + dbfolder);
 				TimeUnit.MILLISECONDS);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
-		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 983040));
-		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
-		envConfig.setConfigParam(EnvironmentConfig.CLEANER_LOOK_AHEAD_CACHE_SIZE, "819200");
 		
+		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 8192000));
+		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
+		envConfig.setConfigParam(EnvironmentConfig.CLEANER_LOOK_AHEAD_CACHE_SIZE, "8192000");
+		envConfig.setConfigParam(EnvironmentConfig.EVICTOR_CORE_THREADS, "10");
+		envConfig.setConfigParam(EnvironmentConfig.LOCK_N_LOCK_TABLES, "32767");
+		envConfig.setConfigParam(EnvironmentConfig.LOG_WRITE_QUEUE_SIZE, "32");
+		envConfig.setConfigParam(EnvironmentConfig.NODE_MAX_ENTRIES, "32767");
 		log.info(">> dbHomeFile" + dbHomeFile);
 
 		return new Environment(dbHomeFile, envConfig);
