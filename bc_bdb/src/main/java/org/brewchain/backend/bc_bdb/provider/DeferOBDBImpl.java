@@ -35,7 +35,7 @@ public class DeferOBDBImpl extends OBDBImpl implements Runnable {
 	}
 
 	@Override
-	public Future<OValue[]> batchPuts(OKey[] keys, OValue[] values) throws ODBException {
+	public synchronized Future<OValue[]> batchPuts(OKey[] keys, OValue[] values) throws ODBException {
 		for (int i = 0; i < keys.length; i++) {
 			memoryMap.put(keys[i], values[i]);
 		}
