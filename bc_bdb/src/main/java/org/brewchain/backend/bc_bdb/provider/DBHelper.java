@@ -138,9 +138,9 @@ log.info(">> dbfolder" + dbfolder);
 		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
 		envConfig.setConfigParam(EnvironmentConfig.CLEANER_LOOK_AHEAD_CACHE_SIZE, "8192000");
 		envConfig.setConfigParam(EnvironmentConfig.EVICTOR_CORE_THREADS, "10");
-		envConfig.setConfigParam(EnvironmentConfig.LOCK_N_LOCK_TABLES, "32767");
-		envConfig.setConfigParam(EnvironmentConfig.LOG_WRITE_QUEUE_SIZE, "32");
-		envConfig.setConfigParam(EnvironmentConfig.NODE_MAX_ENTRIES, "32767");
+		envConfig.setConfigParam(EnvironmentConfig.LOCK_N_LOCK_TABLES, "10");
+		envConfig.setConfigParam(EnvironmentConfig.LOG_WRITE_QUEUE_SIZE, "10240");
+		envConfig.setConfigParam(EnvironmentConfig.NODE_MAX_ENTRIES, "512");
 		log.info(">> dbHomeFile" + dbHomeFile);
 
 		return new Environment(dbHomeFile, envConfig);

@@ -277,11 +277,12 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 					odbs[i].put(kvs[i].keys.get(0), kvs[i].values.get(0));
 					cdl.countDown();
 				}
+			} else {
+				cdl.countDown();
 			}
-
 		}
 		try {
-			cdl.await(60, TimeUnit.SECONDS);
+			cdl.await(5, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
 			throw new ODBException("Batch put TimeoutException");
 		}
