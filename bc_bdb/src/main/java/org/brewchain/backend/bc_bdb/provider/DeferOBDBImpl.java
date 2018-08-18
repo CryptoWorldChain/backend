@@ -70,21 +70,21 @@ public class DeferOBDBImpl extends OBDBImpl implements Runnable {
 	}
 
 	@Override
-	public Future<OValue> put(OKey key, OValue v) throws ODBException {
+	public synchronized Future<OValue> put(OKey key, OValue v) throws ODBException {
 		memoryMap.put(key, v);
 		deferSync();
 		return ConcurrentUtils.constantFuture(v);
 	}
 
 	@Override
-	public Future<OValue> get(OKey key) throws ODBException {
+	public synchronized Future<OValue> get(OKey key) throws ODBException {
 		OValue ov = memoryMap.get(key);
 		if (ov != null)
 			return ConcurrentUtils.constantFuture(ov);
 		return super.get(key);
 	}
 
-	public Future<OValue[]> list(OKey[] keys) throws ODBException {
+	public synchronized Future<OValue[]> list(OKey[] keys) throws ODBException {
 		List<OValue> list = new ArrayList<OValue>();
 		for (OKey key : keys) {
 			Future<OValue> ov = get(key);
