@@ -389,6 +389,7 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 
 	@Override
 	public Future<OValue[]> putIfNotExist(OKey[] keys, OValue[] values) throws ODBException {
+		
 		SlicePair[] kvs = seperate(keys, values);
 		CountDownLatch cdl = new CountDownLatch(sliceCount);
 		List<OValue> ret = new ArrayList<>();
@@ -422,7 +423,9 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 		} catch (InterruptedException e) {
 			throw new ODBException("Batch put TimeoutException");
 		}
-		return ConcurrentUtils.constantFuture(null);
+		
+		OValue[] retValues = new OValue[ret.size()];
+		return ConcurrentUtils.constantFuture(ret.toArray(retValues));
 	}
 
 }
