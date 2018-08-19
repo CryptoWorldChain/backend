@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -401,10 +402,18 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 						throw new ODBException(e);
 					}
 				} else {
-					odbs[i].put(kvs[i].keys.get(0), kvs[i].values.get(0));
+					
+					try {
+						Future<OValue> v = odbs[i].putIfNotExist(kvs[i].keys.get(0), kvs[i].values.get(0));
+						if (v != null && v.get() != null) {
+							ret.add(v.get());
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 					cdl.countDown();
 				}
-			}else{
+			} else {
 				cdl.countDown();
 			}
 		}
