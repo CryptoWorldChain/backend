@@ -424,8 +424,6 @@ public class SlicerOBDBImpl implements ODBSupport, DomainDaoSupport {
 			throw new ODBException("Batch put TimeoutException");
 		}
 		
-		OValue[] retValues = new OValue[ret.size()];
-		return ConcurrentUtils.constantFuture(ret.toArray(retValues));
+		return ConcurrentUtils.constantFuture(ret.toArray(new OValue[] {}));
 	}
-
 }

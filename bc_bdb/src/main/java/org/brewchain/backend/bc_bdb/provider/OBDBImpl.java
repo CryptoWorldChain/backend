@@ -420,18 +420,20 @@ public class OBDBImpl implements ODBSupport, DomainDaoSupport {
 		try {
 			// need TransactionConfig?
 			txn = this.dbs.getEnvironment().beginTransaction(null, this.txnConfig);
-			OValue[] ret = new OValue[keys.length];
+			// OValue[] ret = new OValue[keys.length];
+			List<OValue> ret = new ArrayList<>();
 			for (int i = 0; i < keys.length; i++) {
 				OperationStatus os = this.dbs.putNoOverwrite(txn, new DatabaseEntry(keys[i].toByteArray()),
 						new DatabaseEntry(ODBHelper.v2Bytes(values[i])));
 				if (os == OperationStatus.KEYEXIST) {
-					ret[i] = null;
+					// ret[i] = null;
 				} else {
-					ret[i] = values[i];
+					ret.add(values[i]);
 				}
 			}
 			commitTxn(txn);
-			return ConcurrentUtils.constantFuture(ret);
+			// OValue[] oOValues = ;
+			return ConcurrentUtils.constantFuture(ret.toArray(new OValue[]{}));
 		} catch (Exception ex) {
 			if (txn != null) {
 				txn.abort();
