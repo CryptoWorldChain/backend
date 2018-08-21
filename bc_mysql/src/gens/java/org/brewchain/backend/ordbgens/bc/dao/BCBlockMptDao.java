@@ -160,8 +160,8 @@ public class BCBlockMptDao extends ExtendDaoSupper<BCBlockMpt, BCBlockMptExample
 				if(record.getMptType()!=null){
 				criteria.andMptTypeEqualTo(record.getMptType());
 				}
-				if(record.getVCounts()!=null){
-				criteria.andVCountsEqualTo(record.getVCounts());
+				if(record.getValueCounts()!=null){
+				criteria.andValueCountsEqualTo(record.getValueCounts());
 				}
 				if(record.getBlockStatus()!=null){
 				criteria.andBlockStatusEqualTo(record.getBlockStatus());
@@ -207,7 +207,7 @@ public class BCBlockMptDao extends ExtendDaoSupper<BCBlockMpt, BCBlockMptExample
 				conn.setAutoCommit(false);
 			}		
 			StringBuffer sb=new StringBuffer();
-			sb.append("INSERT INTO BC_BLOCK_MPT(LOG_UUID,BVERSION,BLOCK_HEIGHT,HASH_MPT,HASH_PREV_MPT,MPT_TYPE,V_COUNTS,BLOCK_STATUS,CREATE_TIME,UPDATE_TIME) values");
+			sb.append("INSERT INTO BC_BLOCK_MPT(LOG_UUID,BVERSION,BLOCK_HEIGHT,HASH_MPT,HASH_PREV_MPT,MPT_TYPE,VALUE_COUNTS,BLOCK_STATUS,CREATE_TIME,UPDATE_TIME) values");
 			
 				int i=0;
 				st = conn.createStatement();
@@ -278,13 +278,13 @@ public class BCBlockMptDao extends ExtendDaoSupper<BCBlockMpt, BCBlockMptExample
 			
 				sb.append(",");
 			
-				if(record.getVCounts()==null){
+				if(record.getValueCounts()==null){
 //						sb.append("'"+"0"+"'");
 						sb.append("'"+"0"+"'");
 						
 				}else{
 				// java type==Integer
-						sb.append("'"+record.getVCounts()+"'");
+						sb.append("'"+record.getValueCounts()+"'");
 				}
 			
 				sb.append(",");

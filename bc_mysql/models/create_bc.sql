@@ -59,7 +59,7 @@ create table BC_BLOCK_MPT
     
     MPT_TYPE			VARCHAR(8) default '0000'COMMENT '树的类别',
     
-	V_COUNTS			INT		DEFAULT 0 comment 'value的数值',
+	VALUE_COUNTS			INT		DEFAULT 0 comment 'value的数值',
     
 	BLOCK_STATUS		CHAR(1)	COMMENT '区块状态:(0:新建,1:已确认,2:废弃,3:其他)',
 	CREATE_TIME         datetime DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
