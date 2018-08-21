@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:context="http://www.springframework.org/schema/context" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+						http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+						http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+						http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
+
+		<bean id="bCAccountMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCAccountMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcaccountDao" class="org.brewchain.backend.ordbgens.bc.dao.BCAccountDao" >
+ 		<property name="mapper" ref="bCAccountMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCActAddressMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCActAddressMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcactaddressDao" class="org.brewchain.backend.ordbgens.bc.dao.BCActAddressDao" >
+ 		<property name="mapper" ref="bCActAddressMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCActCryptoValueMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCActCryptoValueMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcactcryptovalueDao" class="org.brewchain.backend.ordbgens.bc.dao.BCActCryptoValueDao" >
+ 		<property name="mapper" ref="bCActCryptoValueMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCActTokenValueMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCActTokenValueMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcacttokenvalueDao" class="org.brewchain.backend.ordbgens.bc.dao.BCActTokenValueDao" >
+ 		<property name="mapper" ref="bCActTokenValueMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCAddressMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCAddressMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcaddressDao" class="org.brewchain.backend.ordbgens.bc.dao.BCAddressDao" >
+ 		<property name="mapper" ref="bCAddressMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCBlockMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCBlockMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcblockDao" class="org.brewchain.backend.ordbgens.bc.dao.BCBlockDao" >
+ 		<property name="mapper" ref="bCBlockMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCBlockMptMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCBlockMptMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcblockmptDao" class="org.brewchain.backend.ordbgens.bc.dao.BCBlockMptDao" >
+ 		<property name="mapper" ref="bCBlockMptMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCCryptoTokenDataMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCCryptoTokenDataMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bccryptotokendataDao" class="org.brewchain.backend.ordbgens.bc.dao.BCCryptoTokenDataDao" >
+ 		<property name="mapper" ref="bCCryptoTokenDataMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCGlobalPropsMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCGlobalPropsMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcglobalpropsDao" class="org.brewchain.backend.ordbgens.bc.dao.BCGlobalPropsDao" >
+ 		<property name="mapper" ref="bCGlobalPropsMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCMtxInputMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCMtxInputMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcmtxinputDao" class="org.brewchain.backend.ordbgens.bc.dao.BCMtxInputDao" >
+ 		<property name="mapper" ref="bCMtxInputMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCMtxOutputMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCMtxOutputMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcmtxoutputDao" class="org.brewchain.backend.ordbgens.bc.dao.BCMtxOutputDao" >
+ 		<property name="mapper" ref="bCMtxOutputMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCMtxSignatureMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCMtxSignatureMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcmtxsignatureDao" class="org.brewchain.backend.ordbgens.bc.dao.BCMtxSignatureDao" >
+ 		<property name="mapper" ref="bCMtxSignatureMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCMutilTransactonMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCMutilTransactonMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bcmutiltransactonDao" class="org.brewchain.backend.ordbgens.bc.dao.BCMutilTransactonDao" >
+ 		<property name="mapper" ref="bCMutilTransactonMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCTransactonMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCTransactonMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bctransactonDao" class="org.brewchain.backend.ordbgens.bc.dao.BCTransactonDao" >
+ 		<property name="mapper" ref="bCTransactonMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	<bean id="bCTransactonAddressMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
+		<property name="mapperInterface" value="org.brewchain.backend.ordbgens.bc.mapper.BCTransactonAddressMapper" />
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean>
+	 <bean id="bctransactonaddressDao" class="org.brewchain.backend.ordbgens.bc.dao.BCTransactonAddressDao" >
+ 		<property name="mapper" ref="bCTransactonAddressMapper" />
+ 		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+ 	</bean>
+	
+</beans>
