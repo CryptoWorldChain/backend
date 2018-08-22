@@ -67,7 +67,7 @@ public class DBHelper {
 		} else {
 			dbfolder = "db" + File.separator + network + File.separator + root + File.separator + domainName;
 		}
-log.info(">> dbfolder" + dbfolder);
+		log.info(">> dbfolder" + dbfolder);
 		File dbHomeFile = new File(dbfolder);
 		if (!dbHomeFile.exists()) {
 			if (!dbHomeFile.mkdirs()) {
@@ -133,9 +133,13 @@ log.info(">> dbfolder" + dbfolder);
 				TimeUnit.MILLISECONDS);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
-		
+
 		envConfig.setCacheSize(params.get("org.brewchain.backend.bdb.cache.max", 8192000));
-		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false");
+		envConfig.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER,
+				params.get("org.brewchain.backend.bdb.je.env.runCleaner", "false"));
+		envConfig.setConfigParam(EnvironmentConfig.CLEANER_THREADS,
+				params.get("org.brewchain.backend.bdb.je.cleaner.threads", "1"));
+//		EnvironmentConfig.LOG_ITERATOR_READ_SIZE
 		envConfig.setConfigParam(EnvironmentConfig.CLEANER_LOOK_AHEAD_CACHE_SIZE, "8192000");
 		envConfig.setConfigParam(EnvironmentConfig.EVICTOR_CORE_THREADS, "10");
 		envConfig.setConfigParam(EnvironmentConfig.LOCK_N_LOCK_TABLES, "10");
@@ -180,28 +184,24 @@ log.info(">> dbfolder" + dbfolder);
 		Environment env = initDatabaseEnvironment(dir, domainName, cc);
 		Database[] dbs = openDatabase(env, "bc_bdb_" + domainName, true, false);
 		if (dbs.length == 1) {
-			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
-				long delay=params.get("org.brewchain.backend.deferdb.delayms",200);
-				DeferOBDBImpl ret= new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
-						delay,
+			if (params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])) {
+				long delay = params.get("org.brewchain.backend.deferdb.delayms", 200);
+				DeferOBDBImpl ret = new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size", 100), delay,
 						domainName, dbs[0]);
 				exec.scheduleWithFixedDelay(ret, delay, delay, TimeUnit.MILLISECONDS);
 				return ret;
-			}else
-			{
+			} else {
 				return new OBDBImpl(domainName, dbs[0]);
 			}
 		} else {
-			if(params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])){
-				long delay=params.get("org.brewchain.backend.deferdb.delayms",200);
+			if (params.get("org.brewchain.backend.deferdb", "account,block,tx,").contains(domainName.split("\\.")[0])) {
+				long delay = params.get("org.brewchain.backend.deferdb.delayms", 200);
 
-				DeferOBDBImpl ret=new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size",100),
-						delay,
-						domainName, dbs[0],dbs[1]);
+				DeferOBDBImpl ret = new DeferOBDBImpl(params.get("org.brewchain.backend.deferdb.size", 100), delay,
+						domainName, dbs[0], dbs[1]);
 				exec.scheduleWithFixedDelay(ret, delay, delay, TimeUnit.MILLISECONDS);
 				return ret;
-			}else
-			{
+			} else {
 				return new OBDBImpl(domainName, dbs[0], dbs[1]);
 			}
 		}
