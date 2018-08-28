@@ -13,6 +13,7 @@ dependencies {
 	compile ("org.fc.zippo:org.fc.zippo.oapi:3.3.2")
 	compile ("org.brewchain:org.brewchain.bcapi:3.3.4")
 	compile "org.fc.zippo:org.fc.zippo.ordbutils:3.3.0-mysql"
+	compile "org.brewchain:org.brewchain.evmapi:1.0.0"
 	
 }
 

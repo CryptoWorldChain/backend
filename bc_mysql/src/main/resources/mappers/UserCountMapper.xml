@@ -1,7 +1,7 @@
   <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="onight.act.persist.mysql.mapper.UserCountMapper">
+<mapper namespace="org.brewchain.backend.mysql.mysql.mapper.UserCountMapper">
 
-	<select id="selectUserCount" resultType="onight.act.persist.entity.UserCount">
+	<select id="selectUserCount" resultType="org.brewchain.backend.mysql.entity.UserCount">
 		select count(1) as
 		user_count,
 		CUST_ID as cust_id

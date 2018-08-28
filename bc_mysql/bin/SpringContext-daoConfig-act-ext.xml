@@ -15,11 +15,11 @@
 	</bean>
 
 	<bean id="userCountMapper" class="org.mybatis.spring.mapper.MapperFactoryBean">
-		<property name="mapperInterface" value="onight.act.persist.mysql.mapper.UserCountMapper" />
+		<property name="mapperInterface" value="org.brewchain.backend.mysql.mysql.mapper.UserCountMapper" />
 		<property name="sqlSessionFactory" ref="extsqlSessionFactory" />
 	</bean>
 	
-	<bean id="usercountDao" class="onight.act.persist.mysql.dao.UserCountDao" >
+	<bean id="usercountDao" class="org.brewchain.backend.mysql.mysql.dao.UserCountDao" >
  		<property name="mapper" ref="userCountMapper" />
  		<!-- <property name="sqlSessionFactory" ref="extsqlSessionFactory" /> -->
  	</bean>
